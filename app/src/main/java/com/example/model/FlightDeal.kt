@@ -110,7 +110,8 @@ data class FlightDeal(
             passengerCount = passengerCount,
             returnBaseFarePerAdult = returnDeal.baseFareMxn,
             returnBaseFarePerChild = returnDeal.baseFareMxn * 0.9,
-            returnTuaPerPassenger = returnDeal.tuaMxn
+            returnTuaPerPassenger = returnDeal.tuaMxn,
+            isRoundTrip = true
         )
     }
 }
