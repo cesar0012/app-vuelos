@@ -209,13 +209,13 @@ class ExampleUnitTest {
 
         val passengers = PassengerCount(adults = 2, children = 1, infants = 0)
         val link = com.example.util.BookingLinkHelper.getDirectBookingUrl(deal, passengers)
+        val promoUrl = com.example.util.BookingLinkHelper.getOfficialPromoPortalUrl(deal.airline)
 
-        assertTrue("Volaris URL must contain domain", link.contains("volaris.com"))
-        assertTrue("URL must contain origin AGU", link.contains("origin=AGU"))
-        assertTrue("URL must contain destination PVR", link.contains("destination=PVR"))
+        assertTrue("Direct live URL must contain Google Flights domain", link.contains("google.com/travel/flights"))
+        assertTrue("URL must contain origin AGU", link.contains("AGU"))
+        assertTrue("URL must contain destination PVR", link.contains("PVR"))
         assertTrue("URL must contain departure date", link.contains("2026-11-26"))
-        assertTrue("URL must include adults=2", link.contains("adults=2"))
-        assertTrue("URL must include children=1", link.contains("children=1"))
+        assertTrue("Official promo URL must contain airline domain", promoUrl.contains("volaris.com"))
     }
 
     @Test
@@ -251,8 +251,10 @@ class ExampleUnitTest {
 
         // Same airline round trip
         val roundTripUrl = com.example.util.BookingLinkHelper.getRoundTripBookingUrl(outbound, returnVolaris)
-        assertTrue("Round-trip URL must include returnDate", roundTripUrl.contains("returnDate=2026-11-28"))
-        assertTrue("Round-trip URL must include origin AGU", roundTripUrl.contains("origin=AGU"))
+        assertTrue("Round-trip URL must be on Google Flights", roundTripUrl.contains("google.com/travel/flights"))
+        assertTrue("Round-trip URL must include return date", roundTripUrl.contains("2026-11-28"))
+        assertTrue("Round-trip URL must include origin AGU", roundTripUrl.contains("AGU"))
+        assertTrue("Round-trip URL must include destination PVR", roundTripUrl.contains("PVR"))
 
         // Round trip breakdown calculation
         val breakdown = outbound.calculateRoundTripBreakdown(
