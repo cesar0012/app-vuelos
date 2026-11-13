@@ -1,117 +1,67 @@
 package com.example.model
 
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+enum class TimePeriod(val label: String) {
+    MANANA("Mañana 05-12h"),
+    TARDE("Tarde 12-18h"),
+    NOCHE("Noche 18-24h")
+}
 
 data class FlightDeal(
     val id: String,
     val airline: Airline,
     val flightNumber: String,
-    val origin: Airport,
-    val destination: Airport,
-    val departureDate: LocalDate,
+    val originCode: String,
+    val destinationCode: String,
+    val departureDate: TravelDate,
     val departureTime: String,
     val arrivalTime: String,
+    val departureHour: Int,
     val durationMinutes: Int,
-    val isNonStop: Boolean = true,
-    val stopsCount: Int = 0,
+    val aircraftModel: String,
+    val isNonStop: Boolean,
+    val stopsCount: Int,
     val layoverAirportCode: String? = null,
     val layoverDurationMinutes: Int? = null,
-    val aircraftModel: String = "Airbus A320neo",
-    val baseFareMxn: Double,
-    val promoLabel: String? = null,
-    val seatsAvailableAtPromo: Int = 4,
-    val returnDate: LocalDate? = null,
-    val promoSourceDescription: String = "Tarifa Promocional Detectada"
+    val baseFareMxn: Int,
+    val originTuaMxn: Int,
+    val isInternational: Boolean,
+    val promoSourceDescription: String,
+    val seatsRemaining: Int = 4
 ) {
-    val durationFormatted: String
+    val totalWithTuaMxn: Int
+        get() = baseFareMxn + originTuaMxn
+
+    val formattedDuration: String
         get() {
-            val hours = durationMinutes / 60
-            val minutes = durationMinutes % 60
-            return "${hours}h ${minutes}m"
+            val h = durationMinutes / 60
+            val m = durationMinutes % 60
+            return if (h > 0) "${h}h ${m}m" else "${m} min"
         }
 
-    val stopsSummary: String
+    val formattedLayoverDuration: String?
+        get() = layoverDurationMinutes?.let { mins ->
+            val h = mins / 60
+            val m = mins % 60
+            if (h > 0) "${h}h ${m}m" else "${m} min"
+        }
+
+    val stopsLabel: String
+        get() = if (isNonStop || stopsCount == 0) {
+            "Directo"
+        } else {
+            val layoverAirport = layoverAirportCode ?: "Conexión"
+            val layoverTime = formattedLayoverDuration ?: ""
+            if (layoverTime.isNotEmpty()) {
+                "$stopsCount escala en $layoverAirport · $layoverTime"
+            } else {
+                "$stopsCount escala en $layoverAirport"
+            }
+        }
+
+    val timePeriod: TimePeriod
         get() = when {
-            isNonStop || stopsCount == 0 -> "Directo (Sin escalas)"
-            layoverAirportCode != null -> "1 escala en $layoverAirportCode (${layoverDurationMinutes ?: 60} min)"
-            else -> "$stopsCount escala"
+            departureHour < 12 -> TimePeriod.MANANA
+            departureHour < 18 -> TimePeriod.TARDE
+            else -> TimePeriod.NOCHE
         }
-
-    val tuaMxn: Double
-        get() = if (destination.isInternational) origin.internationalTuaMxn else origin.nationalTuaMxn
-
-    // Default quick preview for 1 adult, Zero baggage, Random seat
-    val previewTotalMxn: Double
-        get() = baseFareMxn + tuaMxn
-
-    val departureDateFormatted: String
-        get() = departureDate.format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale("es", "MX")))
-
-    val dayAndMonthFormatted: String
-        get() = departureDate.format(DateTimeFormatter.ofPattern("d MMM", Locale("es", "MX")))
-
-    fun calculateBreakdown(
-        passengerCount: PassengerCount,
-        baggageOption: BaggageOption,
-        seatOption: SeatOption
-    ): FareBreakdown {
-        val baggageFee = when (baggageOption) {
-            BaggageOption.ZERO -> 0.0
-            BaggageOption.BASIC -> airline.defaultCarryOnFeeMxn
-            BaggageOption.PLUS -> airline.defaultCarryOnFeeMxn + airline.defaultCheckedBagFeeMxn
-        }
-
-        val seatFee = when (seatOption) {
-            SeatOption.RANDOM -> 0.0
-            SeatOption.STANDARD -> airline.defaultStandardSeatFeeMxn
-            SeatOption.EXTRA_LEGROOM -> airline.defaultExtraLegroomFeeMxn
-        }
-
-        return FareBreakdown(
-            baseFarePerAdult = baseFareMxn,
-            baseFarePerChild = baseFareMxn * 0.9, // 10% discount on base fare for children
-            tuaPerPassenger = tuaMxn,
-            baggageFeePerPassenger = baggageFee,
-            seatFeePerPassenger = seatFee,
-            passengerCount = passengerCount
-        )
-    }
-
-    fun calculateRoundTripBreakdown(
-        returnDeal: FlightDeal?,
-        passengerCount: PassengerCount,
-        baggageOption: BaggageOption,
-        seatOption: SeatOption
-    ): FareBreakdown {
-        if (returnDeal == null) {
-            return calculateBreakdown(passengerCount, baggageOption, seatOption)
-        }
-
-        val baggageFee = when (baggageOption) {
-            BaggageOption.ZERO -> 0.0
-            BaggageOption.BASIC -> airline.defaultCarryOnFeeMxn
-            BaggageOption.PLUS -> airline.defaultCarryOnFeeMxn + airline.defaultCheckedBagFeeMxn
-        }
-
-        val seatFee = when (seatOption) {
-            SeatOption.RANDOM -> 0.0
-            SeatOption.STANDARD -> airline.defaultStandardSeatFeeMxn
-            SeatOption.EXTRA_LEGROOM -> airline.defaultExtraLegroomFeeMxn
-        }
-
-        return FareBreakdown(
-            baseFarePerAdult = baseFareMxn,
-            baseFarePerChild = baseFareMxn * 0.9,
-            tuaPerPassenger = tuaMxn,
-            baggageFeePerPassenger = baggageFee,
-            seatFeePerPassenger = seatFee,
-            passengerCount = passengerCount,
-            returnBaseFarePerAdult = returnDeal.baseFareMxn,
-            returnBaseFarePerChild = returnDeal.baseFareMxn * 0.9,
-            returnTuaPerPassenger = returnDeal.tuaMxn,
-            isRoundTrip = true
-        )
-    }
 }

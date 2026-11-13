@@ -4,25 +4,22 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.model.FlightAlert
 
 @Database(entities = [FlightAlert::class], version = 1, exportSchema = false)
-abstract class CheapTravelDatabase : RoomDatabase() {
+abstract class AppDatabase : RoomDatabase() {
     abstract fun flightAlertDao(): FlightAlertDao
 
     companion object {
         @Volatile
-        private var INSTANCE: CheapTravelDatabase? = null
+        private var INSTANCE: AppDatabase? = null
 
-        fun getDatabase(context: Context): CheapTravelDatabase {
+        fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
-                    CheapTravelDatabase::class.java,
+                    AppDatabase::class.java,
                     "cheap_travel_db"
-                ).fallbackToDestructiveMigration().build()
-                INSTANCE = instance
-                instance
+                ).build().also { INSTANCE = it }
             }
         }
     }

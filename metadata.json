@@ -1,6 +1,6 @@
 {
   "name": "Cheap Travel",
-  "description": "Detector de vuelos ultra baratos en aerolíneas mexicanas e internacionales con desglose de TUA, tarifas y alertas push.",
+  "description": "Cazador y planificador de vuelos ultra baratos en aerolineas mexicanas e internacionales con calculo real de TUA, calendario mensual interactivo, geolocalizacion, alertas push locales y enlaces en vivo.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

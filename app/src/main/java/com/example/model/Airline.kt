@@ -1,63 +1,69 @@
 package com.example.model
 
 import androidx.compose.ui.graphics.Color
-import com.example.ui.theme.AeromexicoNavy
-import com.example.ui.theme.MexicanaBurgundy
-import com.example.ui.theme.VivaAerobusGreen
-import com.example.ui.theme.VolarisPurple
+import com.example.ui.theme.AeromexicoBrand
+import com.example.ui.theme.MexicanaBrand
+import com.example.ui.theme.VivaBrand
+import com.example.ui.theme.VolarisBrand
 
 enum class Airline(
-    val code: String,
+    val iataCode: String,
     val displayName: String,
     val brandColor: Color,
-    val defaultCarryOnFeeMxn: Double,
-    val defaultCheckedBagFeeMxn: Double,
-    val defaultStandardSeatFeeMxn: Double,
-    val defaultExtraLegroomFeeMxn: Double,
-    val famousPromoLabel: String
+    val promoTag: String,
+    val carryOn10kgMxn: Int,
+    val checked25kgMxn: Int,
+    val standardSeatMxn: Int,
+    val extraLegroomSeatMxn: Int,
+    val includesCarryOnInBase: Boolean,
+    val officialPromoUrl: String
 ) {
     VOLARIS(
-        code = "Y4",
+        iataCode = "Y4",
         displayName = "Volaris",
-        brandColor = VolarisPurple,
-        defaultCarryOnFeeMxn = 289.0,
-        defaultCheckedBagFeeMxn = 650.0,
-        defaultStandardSeatFeeMxn = 129.0,
-        defaultExtraLegroomFeeMxn = 289.0,
-        famousPromoLabel = "Vuela desde $199 MXN"
+        brandColor = VolarisBrand,
+        promoTag = "Tarifa Zero",
+        carryOn10kgMxn = 365,
+        checked25kgMxn = 620,
+        standardSeatMxn = 199,
+        extraLegroomSeatMxn = 449,
+        includesCarryOnInBase = false,
+        officialPromoUrl = "https://cms.volaris.com/es/promociones/"
     ),
     VIVA_AEROBUS(
-        code = "VB",
+        iataCode = "VB",
         displayName = "Viva Aerobus",
-        brandColor = VivaAerobusGreen,
-        defaultCarryOnFeeMxn = 270.0,
-        defaultCheckedBagFeeMxn = 620.0,
-        defaultStandardSeatFeeMxn = 119.0,
-        defaultExtraLegroomFeeMxn = 269.0,
-        famousPromoLabel = "Tarifa Zero desde $249 MXN"
+        brandColor = VivaBrand,
+        promoTag = "Tarifa Zero",
+        carryOn10kgMxn = 345,
+        checked25kgMxn = 590,
+        standardSeatMxn = 185,
+        extraLegroomSeatMxn = 420,
+        includesCarryOnInBase = false,
+        officialPromoUrl = "https://www.vivaaerobus.com/es-mx/promociones"
     ),
     AEROMEXICO(
-        code = "AM",
+        iataCode = "AM",
         displayName = "Aeroméxico",
-        brandColor = AeromexicoNavy,
-        defaultCarryOnFeeMxn = 350.0,
-        defaultCheckedBagFeeMxn = 750.0,
-        defaultStandardSeatFeeMxn = 160.0,
-        defaultExtraLegroomFeeMxn = 380.0,
-        famousPromoLabel = "Venta Azul"
+        brandColor = AeromexicoBrand,
+        promoTag = "Tarifa Básica",
+        carryOn10kgMxn = 0, // Básica incluye equipaje de mano 10kg
+        checked25kgMxn = 750,
+        standardSeatMxn = 260,
+        extraLegroomSeatMxn = 590,
+        includesCarryOnInBase = true,
+        officialPromoUrl = "https://aeromexico.com/es-mx/promociones-en-vuelos"
     ),
     MEXICANA(
-        code = "MX",
+        iataCode = "MX",
         displayName = "Mexicana",
-        brandColor = MexicanaBurgundy,
-        defaultCarryOnFeeMxn = 220.0,
-        defaultCheckedBagFeeMxn = 550.0,
-        defaultStandardSeatFeeMxn = 99.0,
-        defaultExtraLegroomFeeMxn = 240.0,
-        famousPromoLabel = "Rutas Sociales desde $399 MXN"
-    );
-
-    companion object {
-        fun fromCode(code: String): Airline = entries.firstOrNull { it.code == code } ?: VOLARIS
-    }
+        brandColor = MexicanaBrand,
+        promoTag = "Tarifa AIFA",
+        carryOn10kgMxn = 0, // Incluye carry-on 10kg
+        checked25kgMxn = 490,
+        standardSeatMxn = 140,
+        extraLegroomSeatMxn = 310,
+        includesCarryOnInBase = true,
+        officialPromoUrl = "https://www.mexicana.gob.mx/"
+    )
 }

@@ -1,7 +1,8 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,220 +22,325 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAlert
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.NotificationAdd
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Radar
-import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.model.FareBreakdown
-import com.example.model.FlightAlert
-import com.example.ui.CheapTravelUiState
-import com.example.ui.CheapTravelViewModel
-import com.example.ui.theme.CyanNeon
-import com.example.ui.theme.HotDiscountPink
-import com.example.ui.theme.SuperDealGreen
+import com.example.data.FlightAlert
+import com.example.model.AirportData
+import com.example.ui.theme.CardBorder
+import com.example.ui.theme.CardElevated
+import com.example.ui.theme.CyanTint
+import com.example.ui.theme.DeepNightBg
+import com.example.ui.theme.GreenTint
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonGreen
+import com.example.ui.theme.NeonPink
+import com.example.ui.theme.PinkTint
+import com.example.ui.theme.SurfaceNavy
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import kotlin.math.roundToInt
 
 @Composable
 fun AlertsScreen(
     alerts: List<FlightAlert>,
-    uiState: CheapTravelUiState,
-    viewModel: CheapTravelViewModel,
+    matchCounts: Map<Int, Int>,
+    lastScanSummary: String?,
+    defaultOriginCode: String,
+    onCreateAlert: (originCode: String, destCode: String?, maxPriceMxn: Int, nonStopOnly: Boolean) -> Unit,
+    onToggleAlert: (id: Int, isActive: Boolean) -> Unit,
+    onDeleteAlert: (id: Int) -> Unit,
+    onScanOffers: () -> Unit,
+    onTestPushNotification: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var selectedOrigin by remember(defaultOriginCode) { mutableStateOf(defaultOriginCode) }
+    var selectedDestination by remember { mutableStateOf<String?>("PVR") }
+    var maxPrice by remember { mutableFloatStateOf(499f) }
+    var nonStopOnly by remember { mutableStateOf(false) }
+
+    var showOriginMenu by remember { mutableStateOf(false) }
+    var showDestMenu by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(bottom = 90.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .background(DeepNightBg)
+            .testTag("alerts_screen_list"),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            Spacer(modifier = Modifier.height(6.dp))
+        // Create Alert Form Card
+        item(key = "create_alert_card") {
+            Surface(
+                color = CardElevated,
+                shape = RoundedCornerShape(18.dp),
+                border = BorderStroke(1.dp, CardBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.AddAlert, contentDescription = null, tint = NeonCyan)
+                        Text(
+                            text = "Nueva Alerta de Precio (Room)",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary
+                        )
+                    }
+                    Text(
+                        text = "Guarda rutas objetivo y recibe notificaciones push locales cuando bajen de precio.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            Surface(
+                                color = DeepNightBg,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showOriginMenu = true }
+                                    .testTag("alert_origin_selector")
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text("Origen", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                    Text(selectedOrigin, style = MaterialTheme.typography.titleMedium, color = NeonCyan)
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = showOriginMenu,
+                                onDismissRequest = { showOriginMenu = false },
+                                modifier = Modifier.background(SurfaceNavy)
+                            ) {
+                                AirportData.mexicanAirports.forEach { ap ->
+                                    DropdownMenuItem(
+                                        text = { Text("${ap.code} · ${ap.city}", color = TextPrimary) },
+                                        onClick = {
+                                            selectedOrigin = ap.code
+                                            showOriginMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.weight(1f)) {
+                            Surface(
+                                color = DeepNightBg,
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showDestMenu = true }
+                                    .testTag("alert_dest_selector")
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text("Destino", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                    Text(
+                                        text = selectedDestination ?: "Cualquiera",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = NeonPink
+                                    )
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = showDestMenu,
+                                onDismissRequest = { showDestMenu = false },
+                                modifier = Modifier.background(SurfaceNavy)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Cualquier destino", color = NeonPink, fontWeight = FontWeight.Bold) },
+                                    onClick = {
+                                        selectedDestination = null
+                                        showDestMenu = false
+                                    }
+                                )
+                                AirportData.airports.filter { it.code != selectedOrigin }.forEach { ap ->
+                                    DropdownMenuItem(
+                                        text = { Text("${ap.code} · ${ap.city}", color = TextPrimary) },
+                                        onClick = {
+                                            selectedDestination = ap.code
+                                            showDestMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Tarifa base máxima", style = MaterialTheme.typography.labelLarge, color = TextPrimary)
+                        Text(
+                            text = "$${maxPrice.roundToInt()} MXN",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = NeonGreen,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Slider(
+                        value = maxPrice,
+                        onValueChange = { maxPrice = it },
+                        valueRange = 199f..4000f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = NeonGreen,
+                            activeTrackColor = NeonGreen,
+                            inactiveTrackColor = CardBorder
+                        ),
+                        modifier = Modifier.testTag("alert_max_price_slider")
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Solo vuelos directos", style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+                        Switch(
+                            checked = nonStopOnly,
+                            onCheckedChange = { nonStopOnly = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = DeepNightBg,
+                                checkedTrackColor = NeonCyan
+                            ),
+                            modifier = Modifier.testTag("alert_nonstop_switch")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                        onClick = {
+                            onCreateAlert(selectedOrigin, selectedDestination, maxPrice.roundToInt(), nonStopOnly)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = DeepNightBg),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .testTag("create_alert_save_btn")
+                    ) {
+                        Icon(Icons.Default.NotificationsActive, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Guardar Alerta", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Scan & Test Push Controls
+        item(key = "alert_actions_row") {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsActive,
-                    contentDescription = null,
-                    tint = HotDiscountPink,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = "Alertas de Precio en Segundo Plano",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-            }
-            Text(
-                text = "Recibe notificaciones automáticas en tu teléfono en cuanto detectemos tarifas que bajen de tu presupuesto configurado.",
-                fontSize = 12.sp,
-                color = Color(0xFF94A3B8)
-            )
-        }
-
-        // Action Buttons: Create Alert & Test Push
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
-                    onClick = { viewModel.openCreateAlert() },
+                    onClick = onScanOffers,
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkTint, contentColor = NeonPink),
+                    border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.6f)),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                        .testTag("create_new_alert_button"),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CyanNeon,
-                        contentColor = Color(0xFF0A0F1D)
-                    ),
-                    shape = RoundedCornerShape(14.dp)
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .testTag("scan_alerts_btn")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AddAlert,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Vigilar Nueva Ruta",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+                    Icon(Icons.Default.Radar, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Escanear Ofertas", style = MaterialTheme.typography.labelLarge)
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                OutlinedButton(
+                    onClick = onTestPushNotification,
+                    border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .testTag("test_push_notification_btn")
                 ) {
-                    OutlinedButton(
-                        onClick = { viewModel.scanAndTriggerAlerts() },
-                        enabled = !uiState.isScanning,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .testTag("scan_now_button"),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        if (uiState.isScanning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = CyanNeon
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Radar,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = CyanNeon
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (uiState.isScanning) "Escaneando..." else "Escanear Ahora",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = CyanNeon
-                        )
-                    }
-
-                    OutlinedButton(
-                        onClick = { viewModel.sendTestPushNotification() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .testTag("test_push_button"),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = SuperDealGreen
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Probar Notificación",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SuperDealGreen
-                        )
-                    }
+                    Icon(Icons.Default.NotificationAdd, contentDescription = null, tint = NeonGreen, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Probar Push", color = NeonGreen, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
 
-        // Active Alerts Section Title
-        item {
-            Text(
-                text = "Tus Rutas Monitoreadas (${alerts.size})",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-        }
-
-        // Alerts List
-        if (alerts.isEmpty()) {
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A2B)),
-                    shape = RoundedCornerShape(18.dp),
+        if (!lastScanSummary.isNullOrBlank()) {
+            item(key = "scan_summary_banner") {
+                Surface(
+                    color = GreenTint,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.5f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsActive,
-                            contentDescription = null,
-                            tint = Color(0xFF475569),
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "No tienes alertas activas",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Crea tu primera alerta para que Cheap Travel te avise de ofertas de $199 MXN antes de que se agoten.",
-                            fontSize = 12.sp,
-                            color = Color(0xFF94A3B8),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
+                    Text(
+                        text = lastScanSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary,
+                        modifier = Modifier.padding(12.dp)
+                    )
                 }
+            }
+        }
+
+        item(key = "alerts_list_hdr") {
+            Text(
+                text = "Alertas Guardadas (${alerts.size})",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary
+            )
+        }
+
+        if (alerts.isEmpty()) {
+            item(key = "alerts_empty") {
+                EmptyDealsBox("Aún no tienes alertas guardadas. Crea tu primera alerta arriba para cazar tarifas de $199 MXN.")
             }
         } else {
             items(alerts, key = { it.id }) { alert ->
-                AlertCard(
+                val matches = matchCounts[alert.id] ?: 0
+                AlertItemCard(
                     alert = alert,
-                    onToggle = { viewModel.toggleAlertEnabled(alert) },
-                    onDelete = { viewModel.deleteAlert(alert) }
+                    matchCount = matches,
+                    onToggle = { active -> onToggleAlert(alert.id, active) },
+                    onDelete = { onDeleteAlert(alert.id) }
                 )
             }
         }
@@ -241,149 +348,88 @@ fun AlertsScreen(
 }
 
 @Composable
-private fun AlertCard(
+private fun AlertItemCard(
     alert: FlightAlert,
-    onToggle: () -> Unit,
+    matchCount: Int,
+    onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF141D30)),
-        shape = RoundedCornerShape(18.dp),
+    val originCity = AirportData.findByCode(alert.originCode)?.city ?: alert.originCode
+    val destLabel = alert.destinationCode?.let { code ->
+        val city = AirportData.findByCode(code)?.city ?: code
+        "$code ($city)"
+    } ?: "Cualquier destino"
+
+    Surface(
+        color = CardElevated,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, if (alert.isActive) NeonCyan.copy(alpha = 0.5f) else CardBorder),
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                1.dp,
-                if (alert.isEnabled) Color(0xFF2E3E5C) else Color(0xFF1B2438),
-                RoundedCornerShape(18.dp)
-            )
             .testTag("alert_card_${alert.id}")
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header: Route and Switch
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "${alert.originCode} ➔ ${alert.destinationCode}",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = if (alert.isEnabled) Color.White else Color(0xFF64748B)
-                        )
-                        if (alert.isEnabled) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(SuperDealGreen.copy(alpha = 0.2f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "Vigilando",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = SuperDealGreen
-                                )
-                            }
-                        }
-                    }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${alert.originCode} ($originCity) -> $destLabel",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "${alert.originCity} a ${alert.destinationCity}",
-                        fontSize = 11.sp,
-                        color = Color(0xFF94A3B8)
+                        text = "Máx $${alert.maxPriceMxn} MXN base",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NeonGreen
+                    )
+                    if (alert.nonStopOnly) {
+                        Text(
+                            text = "· Directos",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NeonCyan
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    color = if (matchCount > 0) CyanTint else DeepNightBg,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = "$matchCount vuelos coincidentes",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (matchCount > 0) NeonCyan else TextSecondary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }
-
-                Switch(
-                    checked = alert.isEnabled,
-                    onCheckedChange = { onToggle() },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = CyanNeon,
-                        checkedTrackColor = Color(0xFF004D54)
-                    ),
-                    modifier = Modifier.testTag("toggle_alert_${alert.id}")
-                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Criteria Details
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Límite deseado: ${FareBreakdown.formatCurrency(alert.targetMaxPriceMxn)}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = HotDiscountPink
-                    )
-                    Text(
-                        text = "Aerolíneas: ${alert.airlinePreference} • ${alert.targetMonth}",
-                        fontSize = 11.sp,
-                        color = Color(0xFF94A3B8)
-                    )
-                }
-
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = alert.isActive,
+                    onCheckedChange = onToggle,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = DeepNightBg,
+                        checkedTrackColor = NeonCyan
+                    ),
+                    modifier = Modifier.testTag("alert_toggle_${alert.id}")
+                )
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.testTag("delete_alert_${alert.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Eliminar alerta",
-                        tint = Color(0xFFEF4444)
-                    )
-                }
-            }
-
-            // Best price detected badge
-            alert.bestPriceDetectedMxn?.let { bestPrice ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF0F2624))
-                        .border(1.dp, SuperDealGreen.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .minimumInteractiveComponentSize()
+                        .testTag("alert_delete_${alert.id}")
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LocalOffer,
-                                contentDescription = null,
-                                tint = SuperDealGreen,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = "Mejor oferta detectada:",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = SuperDealGreen
-                            )
-                        }
-                        Text(
-                            text = "${FareBreakdown.formatCurrency(bestPrice)} (${alert.lastDealAirline ?: "Promo"})",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White
-                        )
-                    }
+                    Icon(Icons.Default.Delete, contentDescription = "Eliminar alerta", tint = NeonPink)
                 }
             }
         }
