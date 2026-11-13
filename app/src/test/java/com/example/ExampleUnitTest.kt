@@ -92,9 +92,15 @@ class ExampleUnitTest {
         val kayak = BookingLinkHelper.kayakOneWayUrl("MEX", "CUN", "2026-11-20")
         assertEquals("https://www.kayak.com.mx/flights/MEX-CUN/2026-11-20?sort=price_a", kayak)
 
+        assertEquals("https://www.volaris.com/es-mx/vuelos-en-oferta", Airline.VOLARIS.officialPromoUrl)
+        assertEquals("https://www.vivaaerobus.com/es-mx/promociones", Airline.VIVA_AEROBUS.officialPromoUrl)
+        assertEquals("https://www.aeromexico.com/es-mx/vuelos-baratos", Airline.AEROMEXICO.officialPromoUrl)
+        assertEquals("https://mexicana.gob.mx/", Airline.MEXICANA.officialPromoUrl)
+
         Airline.entries.forEach { airline ->
             assertNotNull(airline.officialPromoUrl)
             assertTrue(airline.officialPromoUrl.startsWith("https://"))
+            assertFalse(airline.officialPromoUrl.contains("cms.volaris.com"))
         }
     }
 }
