@@ -8,6 +8,7 @@ import com.example.data.AppDatabase
 import com.example.data.FlightAlert
 import com.example.data.FlightAlertRepository
 import com.example.data.FlightDealsRepository
+import com.example.data.LiveAirlineScraper
 import com.example.data.OriginPreferences
 import com.example.model.Airline
 import com.example.model.AirportData
@@ -16,6 +17,9 @@ import com.example.model.TimePeriod
 import com.example.model.TravelDate
 import com.example.util.LocationDetector
 import com.example.util.NotificationHelper
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,9 +28,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 enum class MainTab(val label: String) {
-    DEALS("Ofertas $199"),
+    DEALS("Ofertas"),
     SEARCH("Buscador"),
     CALENDAR("Calendario"),
     ALERTS("Alertas")
@@ -39,10 +46,11 @@ enum class SortOrder(val label: String) {
 
 enum class DealQuickFilter(val label: String) {
     ALL("Todas"),
+    LIVE_VERIFIED("En Vivo"),
     BEACHES("Playas"),
     DOMESTIC("Nacionales"),
     INTERNATIONAL("Internacionales"),
-    VOLARIS_199("Solo Volaris ($199)"),
+    VOLARIS_199("Solo Volaris"),
     VIVA("Solo Viva Aerobus")
 }
 
@@ -72,13 +80,21 @@ enum class AirportDialogMode {
     DESTINATIONS
 }
 
+data class LiveSyncState(
+    val isSyncing: Boolean = false,
+    val liveFareCount: Int = 0,
+    val statusMessage: String = "Listo para consultar precios en vivo",
+    val lastUpdatedTimeLabel: String? = null
+)
+
 data class CalendarDayCell(
     val date: TravelDate,
     val isInCurrentMonth: Boolean,
     val isInCatalogRange: Boolean,
     val lowestBaseFareMxn: Int?,
     val airlinesOperating: List<Airline>,
-    val dealsCount: Int
+    val dealsCount: Int,
+    val hasLiveFare: Boolean = false
 )
 
 data class DealsRadarUiState(
@@ -118,19 +134,25 @@ data class CalendarUiState(
     val chronologicalFlights: List<FlightDeal> = emptyList(),
     val selectedOutboundFlight: FlightDeal? = null,
     val selectedReturnFlight: FlightDeal? = null,
-    val availableRoutesDestinations: List<String> = emptyList()
+    val availableRoutesDestinations: List<String> = emptyList(),
+    val liveRouteFaresCount: Int = 0
 )
 
 class CheapTravelViewModel(application: Application) : AndroidViewModel(application) {
 
     private val originPreferences = OriginPreferences(application)
     private val dealsRepository = FlightDealsRepository()
+    private val liveScraper = LiveAirlineScraper()
     private val alertRepository = FlightAlertRepository(
         AppDatabase.getInstance(application).flightAlertDao()
     )
 
     private val today: TravelDate = TravelDate.today()
-    private val maxCatalogDate: TravelDate = today.plusDays(89)
+    private val maxCatalogDate: TravelDate = today.plusDays(120)
+
+    private val _catalogVersion = MutableStateFlow(0)
+    private val _liveSyncState = MutableStateFlow(LiveSyncState())
+    val liveSyncState: StateFlow<LiveSyncState> = _liveSyncState.asStateFlow()
 
     private val _selectedTab = MutableStateFlow(MainTab.DEALS)
     val selectedTab: StateFlow<MainTab> = _selectedTab.asStateFlow()
@@ -166,36 +188,56 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         _selectedDestinations,
         _dealQuickFilter,
         _dealMaxBaseFare,
-        _dealSortOrder
-    ) { origins, dests, quickFilter, maxBase, sortOrder ->
+        _dealSortOrder,
+        _catalogVersion
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val origins = values[0] as List<String>
+        @Suppress("UNCHECKED_CAST")
+        val dests = values[1] as List<String>
+        val quickFilter = values[2] as DealQuickFilter
+        val maxBase = values[3] as Float
+        val sortOrder = values[4] as SortOrder
+
         val raw = dealsRepository.getDealsForOriginsAndDestinations(origins, dests)
         val filtered = raw.filter { deal ->
             val matchesMax = deal.baseFareMxn <= maxBase.toInt()
             val destAirport = AirportData.findByCode(deal.destinationCode)
             val matchesQuick = when (quickFilter) {
                 DealQuickFilter.ALL -> true
+                DealQuickFilter.LIVE_VERIFIED -> deal.isLiveVerified
                 DealQuickFilter.BEACHES -> destAirport?.isBeach == true
                 DealQuickFilter.DOMESTIC -> !deal.isInternational
                 DealQuickFilter.INTERNATIONAL -> deal.isInternational
-                DealQuickFilter.VOLARIS_199 -> deal.airline == Airline.VOLARIS && deal.baseFareMxn <= 350
+                DealQuickFilter.VOLARIS_199 -> deal.airline == Airline.VOLARIS
                 DealQuickFilter.VIVA -> deal.airline == Airline.VIVA_AEROBUS
             }
             matchesMax && matchesQuick
         }
         val sorted = when (sortOrder) {
             SortOrder.PRICE -> filtered.sortedWith(
-                compareBy<FlightDeal> { it.baseFareMxn }
+                compareByDescending<FlightDeal> { it.isLiveVerified }
+                    .thenBy { it.baseFareMxn }
                     .thenBy { it.totalWithTuaMxn }
                     .thenBy { it.departureDate }
-            )
+            ).let { list ->
+                // Sort strictly by price when ALL/other filters, prioritizing live verified ties
+                filtered.sortedWith(
+                    compareBy<FlightDeal> { it.baseFareMxn }
+                        .thenByDescending { it.isLiveVerified }
+                        .thenBy { it.totalWithTuaMxn }
+                        .thenBy { it.departureDate }
+                )
+            }
             SortOrder.DATE -> filtered.sortedWith(
                 compareBy<FlightDeal> { it.departureDate }
+                    .thenByDescending { it.isLiveVerified }
                     .thenBy { it.baseFareMxn }
                     .thenBy { it.departureTime }
             )
         }
         DealsRadarUiState(
-            deals = sorted.take(120),
+            deals = sorted.take(140),
             headToHeadRouteDateKeys = computeHeadToHeadKeys(sorted),
             quickFilter = quickFilter,
             maxBaseFareMxn = maxBase,
@@ -215,7 +257,8 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         _searchMaxTotal,
         _searchDirectOnly,
         _searchAirline,
-        _searchSortOrder
+        _searchSortOrder,
+        _catalogVersion
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val origins = values[0] as List<String>
@@ -234,10 +277,14 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         }
         val sorted = when (sortOrder) {
             SortOrder.PRICE -> filtered.sortedWith(
-                compareBy<FlightDeal> { it.totalWithTuaMxn }.thenBy { it.departureDate }
+                compareBy<FlightDeal> { it.totalWithTuaMxn }
+                    .thenByDescending { it.isLiveVerified }
+                    .thenBy { it.departureDate }
             )
             SortOrder.DATE -> filtered.sortedWith(
-                compareBy<FlightDeal> { it.departureDate }.thenBy { it.totalWithTuaMxn }
+                compareBy<FlightDeal> { it.departureDate }
+                    .thenBy { it.totalWithTuaMxn }
+                    .thenByDescending { it.isLiveVerified }
             )
         }
         SearchUiState(
@@ -275,11 +322,13 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         val selectedReturnFlight: FlightDeal? = null
     )
 
-    val calendarState: StateFlow<CalendarUiState> = _calendarConfig
-        .combine(_selectedOrigins) { cfg, _ ->
-            buildCalendarState(cfg)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), buildCalendarState(_calendarConfig.value))
+    val calendarState: StateFlow<CalendarUiState> = combine(
+        _calendarConfig,
+        _selectedOrigins,
+        _catalogVersion
+    ) { cfg, _, _ ->
+        buildCalendarState(cfg)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), buildCalendarState(_calendarConfig.value))
 
     // Tab 4: Alerts (Room)
     val alerts: StateFlow<List<FlightAlert>> = alertRepository.allAlerts
@@ -296,6 +345,101 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             alerts.collect { list ->
                 recomputeAlertMatches(list)
+            }
+        }
+        viewModelScope.launch {
+            _catalogVersion.collect {
+                recomputeAlertMatches(alerts.value)
+            }
+        }
+        refreshLiveDeals(forceRefresh = false)
+    }
+
+    fun refreshLiveDeals(forceRefresh: Boolean = true) {
+        viewModelScope.launch {
+            _liveSyncState.update {
+                it.copy(
+                    isSyncing = true,
+                    statusMessage = "Consultando precios reales en Volaris.com y VivaAerobus.com..."
+                )
+            }
+            try {
+                val origins = _selectedOrigins.value.ifEmpty { listOf("AGU", "MEX", "NLU") }.take(3)
+                val calCfg = _calendarConfig.value
+
+                val scrapedAll = coroutineScope {
+                    val globalJob = async { liveScraper.fetchGlobalPromos(forceRefresh) }
+                    val originJobs = origins.map { origin ->
+                        async { liveScraper.fetchOriginDeals(origin, forceRefresh) }
+                    }
+                    val calOutJob = async {
+                        liveScraper.fetchRouteHistogram(calCfg.originCode, calCfg.destinationCode, forceRefresh)
+                    }
+                    val calRetJob = async {
+                        liveScraper.fetchRouteHistogram(calCfg.destinationCode, calCfg.originCode, forceRefresh)
+                    }
+                    (listOf(globalJob, calOutJob, calRetJob) + originJobs).awaitAll().flatten()
+                }
+
+                val totalLive = dealsRepository.applyLiveFares(scrapedAll)
+                _catalogVersion.update { it + 1 }
+
+                val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                _liveSyncState.value = if (totalLive > 0) {
+                    LiveSyncState(
+                        isSyncing = false,
+                        liveFareCount = totalLive,
+                        statusMessage = "En vivo: $totalLive tarifas reales de Volaris.com y VivaAerobus.com",
+                        lastUpdatedTimeLabel = timeLabel
+                    )
+                } else {
+                    LiveSyncState(
+                        isSyncing = false,
+                        liveFareCount = 0,
+                        statusMessage = "Modo referencial offline (sin respuesta de red)",
+                        lastUpdatedTimeLabel = timeLabel
+                    )
+                }
+            } catch (_: Exception) {
+                _liveSyncState.update {
+                    it.copy(
+                        isSyncing = false,
+                        statusMessage = "Usando tarifas referenciales (sin conexión en vivo)"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun fetchRouteLiveInBackground(originCode: String, destCode: String) {
+        viewModelScope.launch {
+            _liveSyncState.update {
+                it.copy(
+                    isSyncing = true,
+                    statusMessage = "Cargando calendario real $originCode <-> $destCode..."
+                )
+            }
+            try {
+                val fares = coroutineScope {
+                    val outJob = async { liveScraper.fetchRouteHistogram(originCode, destCode, false) }
+                    val retJob = async { liveScraper.fetchRouteHistogram(destCode, originCode, false) }
+                    (outJob.await() + retJob.await())
+                }
+                val totalLive = dealsRepository.applyLiveFares(fares)
+                _catalogVersion.update { it + 1 }
+                val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+                _liveSyncState.value = LiveSyncState(
+                    isSyncing = false,
+                    liveFareCount = totalLive,
+                    statusMessage = if (totalLive > 0) {
+                        "En vivo: $totalLive tarifas reales (Volaris.com y VivaAerobus.com)"
+                    } else {
+                        "Modo referencial offline"
+                    },
+                    lastUpdatedTimeLabel = timeLabel
+                )
+            } catch (_: Exception) {
+                _liveSyncState.update { it.copy(isSyncing = false) }
             }
         }
     }
@@ -361,7 +505,8 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                 isInCatalogRange = inRange,
                 lowestBaseFareMxn = lowestBase,
                 airlinesOperating = airlines,
-                dealsCount = dayDeals.size
+                dealsCount = dayDeals.size,
+                hasLiveFare = dayDeals.any { it.isLiveVerified }
             )
         }
 
@@ -377,6 +522,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
 
         val minMonthKey = today.firstOfMonth().yearMonthKey
         val maxMonthKey = maxCatalogDate.firstOfMonth().yearMonthKey
+        val liveRouteCount = routeDealsRaw.count { it.isLiveVerified }
 
         return CalendarUiState(
             tripMode = cfg.tripMode,
@@ -398,7 +544,8 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
             chronologicalFlights = sortedListFlights,
             selectedOutboundFlight = cfg.selectedOutboundFlight,
             selectedReturnFlight = cfg.selectedReturnFlight,
-            availableRoutesDestinations = dealsRepository.getReachableDestinations(cfg.originCode)
+            availableRoutesDestinations = dealsRepository.getReachableDestinations(cfg.originCode),
+            liveRouteFaresCount = liveRouteCount
         )
     }
 
@@ -409,6 +556,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         return when (option) {
             CalendarSortOption.CHEAPEST -> deals.sortedWith(
                 compareBy<FlightDeal> { it.baseFareMxn }
+                    .thenByDescending { it.isLiveVerified }
                     .thenBy { it.totalWithTuaMxn }
                     .thenBy { it.departureDate }
             )
@@ -421,9 +569,9 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                 compareBy<FlightDeal> { deal ->
                     val daysOut = TravelDate.daysBetween(today, deal.departureDate).coerceAtLeast(0)
                     val layoverPenalty = if (deal.isNonStop) 0 else 180
-                    // Balance: precio + penalización moderada por días lejanos y escalas
                     deal.baseFareMxn + (daysOut * 14) + layoverPenalty
-                }.thenBy { it.totalWithTuaMxn }
+                }.thenByDescending { it.isLiveVerified }
+                    .thenBy { it.totalWithTuaMxn }
             )
         }
     }
@@ -431,6 +579,10 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     // Navigation & Modals
     fun selectTab(tab: MainTab) {
         _selectedTab.value = tab
+        if (tab == MainTab.CALENDAR) {
+            val cfg = _calendarConfig.value
+            fetchRouteLiveInBackground(cfg.originCode, cfg.destinationCode)
+        }
     }
 
     fun openAirportDialog(mode: AirportDialogMode) {
@@ -469,15 +621,26 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     fun toggleOriginSelection(code: String) {
         val upper = code.uppercase()
         val current = _selectedOrigins.value.toMutableList()
-        if (upper in current) {
+        val added = if (upper in current) {
             current.remove(upper)
+            false
         } else {
             current.add(upper)
+            true
         }
         _selectedOrigins.value = current
         originPreferences.saveSelectedOrigins(current)
         if (current.isNotEmpty() && _calendarConfig.value.originCode !in current) {
             setCalendarRoute(current.first(), _calendarConfig.value.destinationCode)
+        }
+        if (added) {
+            viewModelScope.launch {
+                val fares = liveScraper.fetchOriginDeals(upper, forceRefresh = false)
+                if (fares.isNotEmpty()) {
+                    dealsRepository.applyLiveFares(fares)
+                    _catalogVersion.update { it + 1 }
+                }
+            }
         }
     }
 
@@ -520,6 +683,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         setCalendarRoute(upper, newDest)
         _detectedGpsBanner.value = "Aeropuerto cercano detectado: $city ($upper) a $distanceKm km"
         _snackbarMessage.value = "Origen ajustado por GPS a $city ($upper)"
+        refreshLiveDeals(forceRefresh = false)
     }
 
     fun attemptFirstLaunchGpsIfNeeded(context: Context) {
@@ -607,8 +771,8 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     fun setCalendarRoute(originCode: String, destinationCode: String) {
         val o = originCode.uppercase()
         val d = destinationCode.uppercase()
+        val safeDest = if (o == d) defaultDestinationFor(o) else d
         _calendarConfig.update { cfg ->
-            val safeDest = if (o == d) defaultDestinationFor(o) else d
             cfg.copy(
                 originCode = o,
                 destinationCode = safeDest,
@@ -619,13 +783,18 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                 selectedReturnFlight = null
             )
         }
+        fetchRouteLiveInBackground(o, safeDest)
     }
 
     fun swapCalendarRoute() {
+        var newOrigin = "PVR"
+        var newDest = "AGU"
         _calendarConfig.update { cfg ->
+            newOrigin = cfg.destinationCode
+            newDest = cfg.originCode
             cfg.copy(
-                originCode = cfg.destinationCode,
-                destinationCode = cfg.originCode,
+                originCode = newOrigin,
+                destinationCode = newDest,
                 roundTripStep = RoundTripStep.OUTBOUND,
                 selectedOutboundDate = null,
                 selectedReturnDate = null,
@@ -633,6 +802,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                 selectedReturnFlight = null
             )
         }
+        fetchRouteLiveInBackground(newOrigin, newDest)
     }
 
     fun setCalendarViewMode(mode: CalendarViewMode) {
@@ -657,7 +827,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
 
     fun navigateCalendarMonth(delta: Int) {
         _calendarConfig.update { cfg ->
-            val next = (cfg.monthOffset + delta).coerceIn(0, 3)
+            val next = (cfg.monthOffset + delta).coerceIn(0, 4)
             cfg.copy(monthOffset = next)
         }
     }

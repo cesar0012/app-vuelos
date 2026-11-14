@@ -263,11 +263,10 @@ fun SearchScreen(
                         onVerifyGoogleFlights = {
                             BookingLinkHelper.openExternalUrl(
                                 context,
-                                BookingLinkHelper.oneWayPromoDayUrl(
+                                BookingLinkHelper.officialAirlineBookingUrl(
                                     deal.airline,
                                     deal.originCode,
-                                    deal.destinationCode,
-                                    deal.departureDate.isoString
+                                    deal.destinationCode
                                 )
                             )
                         },
@@ -285,11 +284,10 @@ fun SearchScreen(
                     onVerifyGoogleFlights = {
                         BookingLinkHelper.openExternalUrl(
                             context,
-                            BookingLinkHelper.oneWayPromoDayUrl(
+                            BookingLinkHelper.officialAirlineBookingUrl(
                                 deal.airline,
                                 deal.originCode,
-                                deal.destinationCode,
-                                deal.departureDate.isoString
+                                deal.destinationCode
                             )
                         )
                     },

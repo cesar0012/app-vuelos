@@ -26,7 +26,9 @@ data class FlightDeal(
     val originTuaMxn: Int,
     val isInternational: Boolean,
     val promoSourceDescription: String,
-    val seatsRemaining: Int = 4
+    val seatsRemaining: Int = 4,
+    val isLiveVerified: Boolean = false,
+    val liveSourceLabel: String? = null
 ) {
     val totalWithTuaMxn: Int
         get() = baseFareMxn + originTuaMxn

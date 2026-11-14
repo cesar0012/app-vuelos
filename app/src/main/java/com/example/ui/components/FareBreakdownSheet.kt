@@ -358,21 +358,11 @@ fun FareBreakdownSheet(
 
             Button(
                 onClick = {
-                    val url = if (returnFlight != null) {
-                        BookingLinkHelper.googleFlightsRoundTripUrl(
-                            outbound.originCode,
-                            outbound.destinationCode,
-                            outbound.departureDate.isoString,
-                            returnFlight.departureDate.isoString
-                        )
-                    } else {
-                        BookingLinkHelper.oneWayPromoDayUrl(
-                            outbound.airline,
-                            outbound.originCode,
-                            outbound.destinationCode,
-                            outbound.departureDate.isoString
-                        )
-                    }
+                    val url = BookingLinkHelper.officialAirlineBookingUrl(
+                        outbound.airline,
+                        outbound.originCode,
+                        outbound.destinationCode
+                    )
                     BookingLinkHelper.openExternalUrl(context, url)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = DeepNightBg),
@@ -383,7 +373,7 @@ fun FareBreakdownSheet(
             ) {
                 Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Verificar tarifa en vivo (Google Flights)", fontWeight = FontWeight.Bold)
+                Text("Buscar en ${outbound.airline.displayName}.com", fontWeight = FontWeight.Bold)
             }
         }
     }

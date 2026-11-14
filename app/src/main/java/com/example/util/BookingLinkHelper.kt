@@ -3,19 +3,41 @@ package com.example.util
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.example.data.AirTrfxCitySlugs
 import com.example.model.Airline
 import java.net.URLEncoder
 
 /**
- * Generates live one-way and round-trip deep links verified against HTTP 200 endpoints
- * (Google Flights with airline filter & one-way day pre-selection, Kayak Mexico with airline
- * filter, and normal airline flight search homepages).
+ * Generates verified HTTP-200 official airline URLs and secondary comparison links
+ * (Kayak Mexico & Google Flights).
  */
 object BookingLinkHelper {
 
     /**
-     * Primary promo locator URL: takes the user directly to the exact one-way day, origin,
-     * destination, and specific airline in MXN.
+     * Direct official airline URL.
+     * - Volaris: verified route page (vuelos-desde-{origin}-a-{dest}) showing exact base-fare
+     *   calendar + flight search widget, or volaris.com/es-mx/ fallback.
+     * - Viva Aerobus: vivaaerobus.com/es-mx (normal booking homepage to avoid 404 on connecting routes).
+     * - Aeroméxico / Mexicana: verified HTTP 200 official search/offers pages.
+     */
+    fun officialAirlineBookingUrl(
+        airline: Airline,
+        originCode: String,
+        destinationCode: String
+    ): String {
+        return when (airline) {
+            Airline.VOLARIS -> {
+                AirTrfxCitySlugs.volarisRouteUrl(originCode, destinationCode)
+                    ?: airline.officialPromoUrl
+            }
+            Airline.VIVA_AEROBUS -> airline.officialPromoUrl
+            Airline.AEROMEXICO -> airline.officialPromoUrl
+            Airline.MEXICANA -> airline.officialPromoUrl
+        }
+    }
+
+    /**
+     * Secondary one-way Google Flights comparison link (includes airport TUA in total).
      */
     fun oneWayPromoDayUrl(
         airline: Airline,

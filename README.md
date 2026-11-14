@@ -17,17 +17,18 @@
    - Selector superior para múltiples orígenes y múltiples destinos (o *"Cualquier destino"*).
    - Chips activos siempre visibles con botón de cierre rápido.
    - Detección automática del aeropuerto mexicano más cercano mediante `LocationManager` y cálculo de distancia **Haversine**.
-2. **Ofertas $199 (Radar Flash):**
-   - Filtros rápidos (`Todas`, `Playas`, `Nacionales`, `Internacionales`, `Solo Volaris ($199)`, `Solo Viva Aerobus`), slider de tarifa base máxima y ordenamiento por **Precio** o **Fecha** (agrupando competencia directa cabeza a cabeza).
+2. **Ofertas en Vivo (Radar Flash):**
+   - Sincronización directa de tarifas reales desde **Volaris.com** y **VivaAerobus.com** (`__NEXT_DATA__` / histogramas diarios de 30 días y tarifas promocionales).
+   - Filtros rápidos (`Todas`, `En Vivo`, `Playas`, `Nacionales`, `Internacionales`, `Solo Volaris`, `Solo Viva Aerobus`), slider de tarifa base máxima y ordenamiento por **Precio** o **Fecha** (agrupando competencia directa cabeza a cabeza).
 3. **Buscador Flexible Multi-Ruta:**
    - Búsqueda simultánea multi-origen / multi-destino por presupuesto total (Base + TUA), vuelos directos y aerolínea.
 4. **Calendario Mensual y Plan de Viaje (Solo Ida / Viaje Redondo):**
-   - Cuadrícula mensual interactiva (`LUN`–`DOM`) de 90 días con tarifa mínima diaria, indicadores por aerolínea y flujo guiado en 2 pasos (`1. Salida` y `2. Regreso`), además de vista cronológica en lista e inversión rápida de ruta.
+   - Cuadrícula mensual interactiva (`LUN`–`DOM`) con tarifa mínima diaria, fechas en vivo destacadas, indicadores por aerolínea y flujo guiado en 2 pasos (`1. Salida` y `2. Regreso`), además de vista cronológica en lista e inversión rápida de ruta.
    - Ordenamiento inteligente (`Más Barato`, `Más Próximo`, `Recomendado (Balance)`) y filtros de horario, aerolínea y vuelos directos.
-   - Tarjeta integrativa **TripPlanSummaryCard** con soporte **Smart Mix** (reserva unificada si es la misma aerolínea o 2 enlaces independientes + copiar plan al portapapeles si son aerolíneas distintas).
+   - Tarjeta integrativa **TripPlanSummaryCard** con soporte **Smart Mix** (reserva directa por tramo o copiar plan al portapapeles).
 5. **Alertas Locales (Room + Notificaciones Push):**
    - Creación, activación/desactivación y eliminación de alertas de precio guardadas en **Room Database** (`FlightAlert`, `FlightAlertDao`).
    - Escaneo de ofertas coincidentes y notificaciones locales de alta prioridad (`POST_NOTIFICATIONS` en Android 13+).
-6. **Calculadora TUA y Enlaces Verificados (Sin 404):**
+6. **Calculadora TUA y Enlaces Directos a Aerolínea (Sin 404):**
    - Desglose transparente de Adultos, Niños (-10% tarifa base), Bebés en brazos (exentos de TUA), paquetes de equipaje (`Zero`, `Básica 10kg`, `Plus 25kg`), asientos y ahorro de TUA (AIFA `NLU` $309 MXN vs AICM `MEX` $570 MXN).
-   - Enlaces en vivo hacia **Google Flights (`curr=MXN&hl=es-MX`)**, **Kayak México** y páginas oficiales de promociones.
+   - Enlace principal directo a la página oficial de la aerolínea (ruta verificada en **Volaris.com** o buscador oficial de **Viva Aerobus**, **Aeroméxico** y **Mexicana**) con guía paso a paso Solo Ida y menú desplegable *"Ver otras opciones"* (**Kayak México**, **Google Flights** y copia de itinerario).

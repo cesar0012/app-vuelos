@@ -26,7 +26,10 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -67,6 +70,7 @@ import com.example.ui.theme.CardElevated
 import com.example.ui.theme.CardHighest
 import com.example.ui.theme.CyanTint
 import com.example.ui.theme.DeepNightBg
+import com.example.ui.theme.GreenTint
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
@@ -80,12 +84,15 @@ import com.example.viewmodel.CalendarDayCell
 import com.example.viewmodel.CalendarSortOption
 import com.example.viewmodel.CalendarUiState
 import com.example.viewmodel.CalendarViewMode
+import com.example.viewmodel.LiveSyncState
 import com.example.viewmodel.RoundTripStep
 import com.example.viewmodel.TripMode
 
 @Composable
 fun CalendarPriceScreen(
     state: CalendarUiState,
+    liveSyncState: LiveSyncState = LiveSyncState(),
+    onRefreshLive: () -> Unit = {},
     onTripModeChange: (TripMode) -> Unit,
     onStepChange: (RoundTripStep) -> Unit,
     onRouteChange: (String, String) -> Unit,
@@ -362,6 +369,8 @@ fun CalendarPriceScreen(
             item(key = "month_grid_card") {
                 MonthGridCard(
                     state = state,
+                    liveSyncState = liveSyncState,
+                    onRefreshLive = onRefreshLive,
                     onPrevMonth = { onNavigateMonth(-1) },
                     onNextMonth = { onNavigateMonth(1) },
                     onDayClicked = onDateClicked
@@ -414,11 +423,10 @@ fun CalendarPriceScreen(
                             onVerifyGoogleFlights = {
                                 BookingLinkHelper.openExternalUrl(
                                     context,
-                                    BookingLinkHelper.oneWayPromoDayUrl(
+                                    BookingLinkHelper.officialAirlineBookingUrl(
                                         deal.airline,
                                         deal.originCode,
-                                        deal.destinationCode,
-                                        deal.departureDate.isoString
+                                        deal.destinationCode
                                     )
                                 )
                             },
@@ -482,11 +490,10 @@ fun CalendarPriceScreen(
                         onVerifyGoogleFlights = {
                             BookingLinkHelper.openExternalUrl(
                                 context,
-                                BookingLinkHelper.oneWayPromoDayUrl(
+                                BookingLinkHelper.officialAirlineBookingUrl(
                                     deal.airline,
                                     deal.originCode,
-                                    deal.destinationCode,
-                                    deal.departureDate.isoString
+                                    deal.destinationCode
                                 )
                             )
                         },
@@ -568,6 +575,8 @@ private fun RouteAirportButton(
 @Composable
 private fun MonthGridCard(
     state: CalendarUiState,
+    liveSyncState: LiveSyncState,
+    onRefreshLive: () -> Unit,
     onPrevMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onDayClicked: (TravelDate) -> Unit
@@ -673,27 +682,71 @@ private fun MonthGridCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Airline dot legend
+            // Airline dot legend + Live route sync pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Airline.entries.forEach { airline ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Airline.entries.forEach { airline ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(airline.brandColor)
+                            )
+                            Text(
+                                text = airline.iataCode,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    color = if (state.liveRouteFaresCount > 0) GreenTint else CyanTint,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .clickable(enabled = !liveSyncState.isSyncing, onClick = onRefreshLive)
+                        .testTag("cal_refresh_live_btn")
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(airline.brandColor)
-                        )
+                        if (liveSyncState.isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(11.dp),
+                                strokeWidth = 1.5.dp,
+                                color = NeonCyan
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (state.liveRouteFaresCount > 0) Icons.Default.Wifi else Icons.Default.Refresh,
+                                contentDescription = "Actualizar fechas en vivo",
+                                tint = if (state.liveRouteFaresCount > 0) NeonGreen else NeonCyan,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                         Text(
-                            text = airline.iataCode,
+                            text = when {
+                                liveSyncState.isSyncing -> "Consultando..."
+                                state.liveRouteFaresCount > 0 -> "${state.liveRouteFaresCount} fechas en vivo"
+                                else -> "Consultar en vivo"
+                            },
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary
+                            color = if (state.liveRouteFaresCount > 0) NeonGreen else NeonCyan,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -724,6 +777,7 @@ private fun CalendarDayCellBox(
         !cell.isInCurrentMonth -> Color.Transparent
         isOutboundSelected -> NeonCyan
         isReturnSelected -> NeonPink
+        cell.hasLiveFare && enabled -> NeonGreen.copy(alpha = 0.65f)
         enabled -> CardBorder
         else -> Color(0xFF141C2E)
     }

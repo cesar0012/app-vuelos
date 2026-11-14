@@ -79,6 +79,7 @@ fun CheapTravelApp(
     val alerts by viewModel.alerts.collectAsStateWithLifecycle()
     val alertMatchCounts by viewModel.alertMatchCounts.collectAsStateWithLifecycle()
     val lastScanSummary by viewModel.lastScanSummary.collectAsStateWithLifecycle()
+    val liveSyncState by viewModel.liveSyncState.collectAsStateWithLifecycle()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -199,6 +200,8 @@ fun CheapTravelApp(
             when (selectedTab) {
                 MainTab.DEALS -> DealsRadarScreen(
                     state = dealsState,
+                    liveSyncState = liveSyncState,
+                    onRefreshLive = { viewModel.refreshLiveDeals(forceRefresh = true) },
                     onQuickFilterSelected = viewModel::setDealQuickFilter,
                     onMaxBaseFareChange = viewModel::setDealMaxBaseFare,
                     onSortOrderChange = viewModel::setDealSortOrder,
@@ -218,6 +221,8 @@ fun CheapTravelApp(
 
                 MainTab.CALENDAR -> CalendarPriceScreen(
                     state = calendarState,
+                    liveSyncState = liveSyncState,
+                    onRefreshLive = { viewModel.refreshLiveDeals(forceRefresh = true) },
                     onTripModeChange = viewModel::setTripMode,
                     onStepChange = viewModel::setRoundTripStep,
                     onRouteChange = viewModel::setCalendarRoute,

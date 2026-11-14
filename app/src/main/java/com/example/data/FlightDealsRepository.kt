@@ -4,7 +4,10 @@ import com.example.model.Airline
 import com.example.model.AirportData
 import com.example.model.FlightDeal
 import com.example.model.TravelDate
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 private data class RouteTemplate(
     val airline: Airline,
@@ -919,7 +922,129 @@ class FlightDealsRepository(
         )
     )
 
-    val catalog: List<FlightDeal> by lazy { build90DayCatalog() }
+    private val baseCatalog: List<FlightDeal> by lazy { build90DayCatalog() }
+    private val liveFaresByKey = ConcurrentHashMap<String, ScrapedFare>()
+
+    @Volatile
+    private var mergedCatalogCache: List<FlightDeal>? = null
+
+    val catalog: List<FlightDeal>
+        get() = mergedCatalogCache ?: synchronized(this) {
+            mergedCatalogCache ?: rebuildMergedCatalog().also { mergedCatalogCache = it }
+        }
+
+    fun applyLiveFares(fares: List<ScrapedFare>): Int {
+        if (fares.isEmpty()) return liveFaresByKey.size
+        var changed = false
+        for (fare in fares) {
+            val key = fareKey(fare.airline, fare.originCode, fare.destinationCode, fare.departureDate)
+            val prev = liveFaresByKey[key]
+            if (prev == null || prev.baseFareMxn != fare.baseFareMxn || prev.lastSeenLabel != fare.lastSeenLabel) {
+                liveFaresByKey[key] = fare
+                changed = true
+            }
+        }
+        if (changed) {
+            synchronized(this) {
+                mergedCatalogCache = rebuildMergedCatalog()
+            }
+        }
+        return liveFaresByKey.size
+    }
+
+    fun liveFareCount(): Int = liveFaresByKey.size
+
+    private fun fareKey(
+        airline: Airline,
+        originCode: String,
+        destCode: String,
+        date: TravelDate
+    ): String = "${airline.iataCode}_${originCode.uppercase()}_${destCode.uppercase()}_${date.isoString}"
+
+    private fun rebuildMergedCatalog(): List<FlightDeal> {
+        if (liveFaresByKey.isEmpty()) return baseCatalog
+
+        val matchedKeys = HashSet<String>()
+        val primaryUpdatedKeys = HashSet<String>()
+
+        val updatedBase = baseCatalog.map { deal ->
+            val key = fareKey(deal.airline, deal.originCode, deal.destinationCode, deal.departureDate)
+            val scraped = liveFaresByKey[key]
+            if (scraped == null) {
+                deal
+            } else {
+                matchedKeys.add(key)
+                val siteLabel = when (deal.airline) {
+                    Airline.VOLARIS -> "Volaris.com"
+                    Airline.VIVA_AEROBUS -> "VivaAerobus.com"
+                    else -> deal.airline.displayName
+                }
+                if (primaryUpdatedKeys.add(key)) {
+                    val ageNote = scraped.lastSeenLabel?.let { " ($it)" } ?: ""
+                    deal.copy(
+                        baseFareMxn = scraped.baseFareMxn,
+                        isLiveVerified = true,
+                        liveSourceLabel = "En vivo · $siteLabel",
+                        promoSourceDescription = "Tarifa real $siteLabel$ageNote"
+                    )
+                } else {
+                    // Secondary flight on the same day must not undercut the live minimum fare
+                    deal.copy(
+                        baseFareMxn = maxOf(deal.baseFareMxn, scraped.baseFareMxn + 120),
+                        isLiveVerified = false,
+                        liveSourceLabel = null
+                    )
+                }
+            }
+        }
+
+        val extraLiveDeals = ArrayList<FlightDeal>()
+        for ((key, scraped) in liveFaresByKey) {
+            if (key in matchedKeys) continue
+            val originAirport = AirportData.findByCode(scraped.originCode) ?: continue
+            val destAirport = AirportData.findByCode(scraped.destinationCode) ?: continue
+            val distanceKm = originAirport.distanceKmTo(destAirport.latitude, destAirport.longitude)
+            val estDurationMin = ((distanceKm / 720.0) * 60.0).roundToInt().coerceIn(45, 420)
+            val isIntl = !originAirport.isMexican || !destAirport.isMexican
+            val originTua = originAirport.tuaForFlight(isIntl)
+            val depHour = 7 + (abs(scraped.originCode.hashCode() + scraped.destinationCode.hashCode()) % 12)
+            val depTime = String.format(Locale.US, "%02d:15", depHour)
+            val totalArrMin = depHour * 60 + 15 + estDurationMin
+            val arrTime = String.format(Locale.US, "%02d:%02d", (totalArrMin / 60) % 24, totalArrMin % 60)
+            val siteLabel = if (scraped.airline == Airline.VOLARIS) "Volaris.com" else "VivaAerobus.com"
+            val flightNum = "${scraped.airline.iataCode} ${1100 + (abs(key.hashCode()) % 7900)}"
+            val ageNote = scraped.lastSeenLabel?.let { " ($it)" } ?: ""
+
+            extraLiveDeals.add(
+                FlightDeal(
+                    id = "LIVE_${key}",
+                    airline = scraped.airline,
+                    flightNumber = flightNum,
+                    originCode = scraped.originCode,
+                    destinationCode = scraped.destinationCode,
+                    departureDate = scraped.departureDate,
+                    departureTime = depTime,
+                    arrivalTime = arrTime,
+                    departureHour = depHour,
+                    durationMinutes = estDurationMin,
+                    aircraftModel = if (scraped.airline == Airline.VOLARIS) "Airbus A320neo" else "Airbus A321neo",
+                    isNonStop = true,
+                    stopsCount = 0,
+                    layoverAirportCode = null,
+                    layoverDurationMinutes = null,
+                    baseFareMxn = scraped.baseFareMxn,
+                    originTuaMxn = originTua,
+                    isInternational = isIntl,
+                    promoSourceDescription = "Tarifa real $siteLabel$ageNote",
+                    seatsRemaining = 4,
+                    isLiveVerified = true,
+                    liveSourceLabel = "En vivo · $siteLabel"
+                )
+            )
+        }
+
+        return updatedBase + extraLiveDeals
+    }
 
     private fun build90DayCatalog(): List<FlightDeal> {
         val result = ArrayList<FlightDeal>(4500)

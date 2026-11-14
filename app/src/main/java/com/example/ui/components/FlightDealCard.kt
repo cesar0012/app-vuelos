@@ -17,12 +17,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AirplanemodeActive
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.ConnectingAirports
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.Verified
@@ -128,7 +129,7 @@ fun FlightDealCard(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CompareArrows,
+                                    imageVector = Icons.AutoMirrored.Filled.CompareArrows,
                                     contentDescription = "Competencia directa",
                                     tint = NeonGold,
                                     modifier = Modifier.size(12.dp)
@@ -143,11 +144,38 @@ fun FlightDealCard(
                     }
                 }
 
-                Text(
-                    text = "${deal.seatsRemaining} lugares",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (deal.seatsRemaining <= 3) NeonPink else TextSecondary
-                )
+                if (deal.isLiveVerified) {
+                    Surface(
+                        color = GreenTint,
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.55f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Wifi,
+                                contentDescription = "Tarifa verificada en vivo",
+                                tint = NeonGreen,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = "En vivo",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NeonGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "${deal.seatsRemaining} lugares",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (deal.seatsRemaining <= 3) NeonPink else TextSecondary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -394,9 +422,10 @@ fun FlightDealCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = selectButtonLabel ?: "Ir al día",
+                        text = selectButtonLabel ?: "Ir a ${deal.airline.iataCode}",
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
                 }
             }

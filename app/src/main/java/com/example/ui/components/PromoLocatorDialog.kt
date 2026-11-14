@@ -26,8 +26,10 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlightTakeoff
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,6 +59,7 @@ import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CardElevated
 import com.example.ui.theme.CyanTint
 import com.example.ui.theme.DeepNightBg
+import com.example.ui.theme.GreenTint
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
@@ -77,12 +80,11 @@ fun PromoLocatorDialog(
     val originCity = AirportData.findByCode(deal.originCode)?.city ?: deal.originCode
     val destCity = AirportData.findByCode(deal.destinationCode)?.city ?: deal.destinationCode
 
-    val primaryDayUrl = remember(deal) {
-        BookingLinkHelper.oneWayPromoDayUrl(
+    val officialDirectUrl = remember(deal) {
+        BookingLinkHelper.officialAirlineBookingUrl(
             airline = deal.airline,
             originCode = deal.originCode,
-            destinationCode = deal.destinationCode,
-            departureDateIso = deal.departureDate.isoString
+            destinationCode = deal.destinationCode
         )
     }
 
@@ -93,7 +95,7 @@ fun PromoLocatorDialog(
             border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)),
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 600.dp)
+                .heightIn(max = 620.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -116,7 +118,7 @@ fun PromoLocatorDialog(
                             tint = NeonCyan
                         )
                         Text(
-                            text = "Promoción Localizada",
+                            text = if (deal.isLiveVerified) "Tarifa Real Localizada" else "Promoción Localizada",
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary
                         )
@@ -154,15 +156,29 @@ fun PromoLocatorDialog(
                                 color = NeonCyan
                             )
                             Surface(
-                                color = CyanTint,
+                                color = if (deal.isLiveVerified) GreenTint else CyanTint,
                                 shape = RoundedCornerShape(6.dp)
                             ) {
-                                Text(
-                                    text = "Solo Ida",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = NeonCyan,
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                ) {
+                                    if (deal.isLiveVerified) {
+                                        Icon(
+                                            imageVector = Icons.Default.Wifi,
+                                            contentDescription = null,
+                                            tint = NeonGreen,
+                                            modifier = Modifier.size(11.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = if (deal.isLiveVerified) "En vivo · Solo Ida" else "Solo Ida",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (deal.isLiveVerified) NeonGreen else NeonCyan,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                         Text(
@@ -186,9 +202,9 @@ fun PromoLocatorDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Primary link: directly to that exact day & route (Solo Ida)
+                // Primary link: directly to the official airline website (route page or search home)
                 Button(
-                    onClick = { BookingLinkHelper.openExternalUrl(context, primaryDayUrl) },
+                    onClick = { BookingLinkHelper.openExternalUrl(context, officialDirectUrl) },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = NeonCyan,
                         contentColor = DeepNightBg
@@ -205,9 +221,59 @@ fun PromoLocatorDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Ir al día de la reserva (${deal.departureDate.shortLabelEs})",
+                        text = "Buscar en ${deal.airline.displayName}.com",
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Clear guided search instructions below the official airline link
+                Surface(
+                    color = CyanTint,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("promo_search_instructions")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "Cómo localizar esta tarifa en ${deal.airline.displayName}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = NeonCyan,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "1. Selecciona Solo Ida: ${deal.originCode} ($originCity) -> ${deal.destinationCode} ($destCity).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "2. Elige la fecha exacta: ${deal.departureDate.fullDayLabelEs} (${deal.departureDate.isoString}).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "3. La tarifa base publicada es $${deal.baseFareMxn} MXN (+ $${deal.originTuaMxn} TUA en el resumen de pago).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -286,7 +352,8 @@ fun PromoLocatorDialog(
                             onClick = {
                                 BookingLinkHelper.openExternalUrl(
                                     context,
-                                    BookingLinkHelper.googleFlightsOneWayUrl(
+                                    BookingLinkHelper.oneWayPromoDayUrl(
+                                        airline = deal.airline,
                                         originCode = deal.originCode,
                                         destinationCode = deal.destinationCode,
                                         departureDateIso = deal.departureDate.isoString
@@ -307,7 +374,7 @@ fun PromoLocatorDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Google Flights (Todas las aerolíneas)",
+                                text = "Google Flights (Solo Ida · incluye TUA)",
                                 color = NeonCyan
                             )
                         }
@@ -330,14 +397,14 @@ fun PromoLocatorDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Buscador web de ${deal.airline.displayName}",
+                                text = "Portada principal ${deal.airline.displayName}",
                                 color = TextPrimary
                             )
                         }
 
                         OutlinedButton(
                             onClick = {
-                                val summary = "${deal.originCode} -> ${deal.destinationCode} (Solo Ida) | ${deal.departureDate.isoString} | ${deal.airline.displayName} ${deal.flightNumber} | Base $${deal.baseFareMxn} MXN"
+                                val summary = "${deal.originCode} -> ${deal.destinationCode} (Solo Ida) | ${deal.departureDate.isoString} | ${deal.airline.displayName} ${deal.flightNumber} | Base $${deal.baseFareMxn} MXN (+ $${deal.originTuaMxn} TUA)"
                                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                                 cm?.setPrimaryClip(ClipData.newPlainText("Vuelo Cheap Travel", summary))
                                 Toast.makeText(context, "Ruta y fecha copiadas", Toast.LENGTH_SHORT).show()

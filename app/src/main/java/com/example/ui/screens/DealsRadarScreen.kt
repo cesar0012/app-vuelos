@@ -18,10 +18,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -49,6 +55,7 @@ import com.example.ui.theme.CardBorder
 import com.example.ui.theme.CardElevated
 import com.example.ui.theme.CyanTint
 import com.example.ui.theme.DeepNightBg
+import com.example.ui.theme.GreenTint
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
@@ -58,12 +65,15 @@ import com.example.ui.theme.TextSecondary
 import com.example.util.BookingLinkHelper
 import com.example.viewmodel.DealQuickFilter
 import com.example.viewmodel.DealsRadarUiState
+import com.example.viewmodel.LiveSyncState
 import com.example.viewmodel.SortOrder
 import kotlin.math.roundToInt
 
 @Composable
 fun DealsRadarScreen(
     state: DealsRadarUiState,
+    liveSyncState: LiveSyncState = LiveSyncState(),
+    onRefreshLive: () -> Unit = {},
     onQuickFilterSelected: (DealQuickFilter) -> Unit,
     onMaxBaseFareChange: (Float) -> Unit,
     onSortOrderChange: (SortOrder) -> Unit,
@@ -99,12 +109,12 @@ fun DealsRadarScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -121,22 +131,67 @@ fun DealsRadarScreen(
                                 color = NeonPink
                             )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (lowestDealFare != null) {
-                                "Vuelos desde $$lowestDealFare MXN base"
-                            } else {
-                                "Explora tarifas promocionales"
-                            },
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = "${state.deals.size} tarifas activas en los próximos 90 días con TUA oficial calculada.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
+
+                        Surface(
+                            color = if (liveSyncState.liveFareCount > 0) GreenTint else CyanTint,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(
+                                1.dp,
+                                if (liveSyncState.liveFareCount > 0) NeonGreen.copy(alpha = 0.6f) else NeonCyan.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .heightIn(min = 36.dp)
+                                .clickable(enabled = !liveSyncState.isSyncing, onClick = onRefreshLive)
+                                .testTag("refresh_live_fares_btn")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                if (liveSyncState.isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(13.dp),
+                                        strokeWidth = 2.dp,
+                                        color = NeonCyan
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = if (liveSyncState.liveFareCount > 0) Icons.Default.Wifi else Icons.Default.Refresh,
+                                        contentDescription = "Actualizar precios en vivo",
+                                        tint = if (liveSyncState.liveFareCount > 0) NeonGreen else NeonCyan,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Text(
+                                    text = when {
+                                        liveSyncState.isSyncing -> "Sincronizando..."
+                                        liveSyncState.liveFareCount > 0 -> "${liveSyncState.liveFareCount} en vivo"
+                                        else -> "Sincronizar"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (liveSyncState.liveFareCount > 0) NeonGreen else NeonCyan,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (lowestDealFare != null) {
+                            "Vuelos desde $$lowestDealFare MXN base"
+                        } else {
+                            "Explora tarifas promocionales"
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "${state.deals.size} tarifas activas · ${liveSyncState.statusMessage}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
                 }
             }
         }
@@ -266,11 +321,10 @@ fun DealsRadarScreen(
                         onVerifyGoogleFlights = {
                             BookingLinkHelper.openExternalUrl(
                                 context,
-                                BookingLinkHelper.oneWayPromoDayUrl(
+                                BookingLinkHelper.officialAirlineBookingUrl(
                                     deal.airline,
                                     deal.originCode,
-                                    deal.destinationCode,
-                                    deal.departureDate.isoString
+                                    deal.destinationCode
                                 )
                             )
                         },
@@ -288,11 +342,10 @@ fun DealsRadarScreen(
                     onVerifyGoogleFlights = {
                         BookingLinkHelper.openExternalUrl(
                             context,
-                            BookingLinkHelper.oneWayPromoDayUrl(
+                            BookingLinkHelper.officialAirlineBookingUrl(
                                 deal.airline,
                                 deal.originCode,
-                                deal.destinationCode,
-                                deal.departureDate.isoString
+                                deal.destinationCode
                             )
                         )
                     },

@@ -210,11 +210,10 @@ fun TripPlanSummaryCard(
                     onClick = {
                         BookingLinkHelper.openExternalUrl(
                             context,
-                            BookingLinkHelper.oneWayPromoDayUrl(
+                            BookingLinkHelper.officialAirlineBookingUrl(
                                 outbound.airline,
                                 outbound.originCode,
-                                outbound.destinationCode,
-                                outbound.departureDate.isoString
+                                outbound.destinationCode
                             )
                         )
                     },
@@ -226,19 +225,18 @@ fun TripPlanSummaryCard(
                 ) {
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Ir al día Solo Ida (${outbound.airline.displayName})", fontWeight = FontWeight.Bold)
+                    Text("Buscar Solo Ida en ${outbound.airline.displayName}", fontWeight = FontWeight.Bold)
                 }
             } else if (!isSmartMix) {
-                // Same airline -> 1 unified Round Trip button
+                // Same airline -> direct airline link
                 Button(
                     onClick = {
                         BookingLinkHelper.openExternalUrl(
                             context,
-                            BookingLinkHelper.googleFlightsRoundTripUrl(
+                            BookingLinkHelper.officialAirlineBookingUrl(
+                                outbound.airline,
                                 outbound.originCode,
-                                outbound.destinationCode,
-                                outbound.departureDate.isoString,
-                                returnFlight!!.departureDate.isoString
+                                outbound.destinationCode
                             )
                         )
                     },
@@ -251,24 +249,22 @@ fun TripPlanSummaryCard(
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Reservar Viaje Redondo (${outbound.airline.displayName})",
+                        text = "Reservar en ${outbound.airline.displayName}.com",
                         fontWeight = FontWeight.Bold
                     )
                 }
             } else {
-                // Smart Mix (Different airlines) -> 2 independent one-way links (Ida + Vuelta al revés Solo Ida)
+                // Smart Mix (Different airlines) -> 2 independent one-way airline links (Ida + Vuelta al revés Solo Ida)
                 val ret = returnFlight!!
-                val urlOut = BookingLinkHelper.oneWayPromoDayUrl(
+                val urlOut = BookingLinkHelper.officialAirlineBookingUrl(
                     outbound.airline,
                     outbound.originCode,
-                    outbound.destinationCode,
-                    outbound.departureDate.isoString
+                    outbound.destinationCode
                 )
-                val urlRet = BookingLinkHelper.oneWayPromoDayUrl(
+                val urlRet = BookingLinkHelper.officialAirlineBookingUrl(
                     ret.airline,
                     ret.originCode,
-                    ret.destinationCode,
-                    ret.departureDate.isoString
+                    ret.destinationCode
                 )
 
                 Row(

@@ -103,6 +103,19 @@ class ExampleUnitTest {
         assertEquals("https://www.aeromexico.com/es-mx/vuelos-baratos", Airline.AEROMEXICO.officialPromoUrl)
         assertEquals("https://mexicana.gob.mx/", Airline.MEXICANA.officialPromoUrl)
 
+        assertEquals(
+            "https://www.volaris.com/es-mx/vuelos-desde-aguascalientes-a-puerto-vallarta",
+            BookingLinkHelper.officialAirlineBookingUrl(Airline.VOLARIS, "AGU", "PVR")
+        )
+        assertEquals(
+            "https://www.volaris.com/es-mx/vuelos-desde-felipe-%C3%A1ngeles-cdmx-a-cancun",
+            BookingLinkHelper.officialAirlineBookingUrl(Airline.VOLARIS, "NLU", "CUN")
+        )
+        assertEquals(
+            "https://www.vivaaerobus.com/es-mx",
+            BookingLinkHelper.officialAirlineBookingUrl(Airline.VIVA_AEROBUS, "AGU", "PVR")
+        )
+
         Airline.entries.forEach { airline ->
             assertNotNull(airline.officialPromoUrl)
             assertTrue(airline.officialPromoUrl.startsWith("https://"))
