@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -94,5 +95,27 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("alert_origin_selector").assertIsDisplayed()
         composeTestRule.onNodeWithTag("create_alert_save_btn").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `promo locator dialog shows primary one-way link and expands secondary options on click`() {
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("deals_radar_list")
+            .performScrollToIndex(3)
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodes(androidx.compose.ui.test.hasText("Ver Promo"))[0]
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("promo_primary_day_btn").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("promo_kayak_btn").assertDoesNotExist()
+
+        composeTestRule.onNodeWithTag("promo_toggle_other_options").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("promo_kayak_btn").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("promo_google_all_btn").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithTag("promo_official_airline_btn").performScrollTo().assertIsDisplayed()
     }
 }

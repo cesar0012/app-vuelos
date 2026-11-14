@@ -210,7 +210,8 @@ fun TripPlanSummaryCard(
                     onClick = {
                         BookingLinkHelper.openExternalUrl(
                             context,
-                            BookingLinkHelper.googleFlightsOneWayUrl(
+                            BookingLinkHelper.oneWayPromoDayUrl(
+                                outbound.airline,
                                 outbound.originCode,
                                 outbound.destinationCode,
                                 outbound.departureDate.isoString
@@ -225,7 +226,7 @@ fun TripPlanSummaryCard(
                 ) {
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Reservar Solo Ida en Google Flights", fontWeight = FontWeight.Bold)
+                    Text("Ir al día Solo Ida (${outbound.airline.displayName})", fontWeight = FontWeight.Bold)
                 }
             } else if (!isSmartMix) {
                 // Same airline -> 1 unified Round Trip button
@@ -255,14 +256,16 @@ fun TripPlanSummaryCard(
                     )
                 }
             } else {
-                // Smart Mix (Different airlines) -> 2 independent buttons + open both + copy plan
+                // Smart Mix (Different airlines) -> 2 independent one-way links (Ida + Vuelta al revés Solo Ida)
                 val ret = returnFlight!!
-                val urlOut = BookingLinkHelper.googleFlightsOneWayUrl(
+                val urlOut = BookingLinkHelper.oneWayPromoDayUrl(
+                    outbound.airline,
                     outbound.originCode,
                     outbound.destinationCode,
                     outbound.departureDate.isoString
                 )
-                val urlRet = BookingLinkHelper.googleFlightsOneWayUrl(
+                val urlRet = BookingLinkHelper.oneWayPromoDayUrl(
+                    ret.airline,
                     ret.originCode,
                     ret.destinationCode,
                     ret.departureDate.isoString

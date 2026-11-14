@@ -366,7 +366,8 @@ fun FareBreakdownSheet(
                             returnFlight.departureDate.isoString
                         )
                     } else {
-                        BookingLinkHelper.googleFlightsOneWayUrl(
+                        BookingLinkHelper.oneWayPromoDayUrl(
+                            outbound.airline,
                             outbound.originCode,
                             outbound.destinationCode,
                             outbound.departureDate.isoString

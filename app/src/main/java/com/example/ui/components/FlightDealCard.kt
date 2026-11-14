@@ -372,7 +372,7 @@ fun FlightDealCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Localizar", style = MaterialTheme.typography.labelMedium, color = NeonPink)
+                    Text("Ver Promo", style = MaterialTheme.typography.labelMedium, color = NeonPink)
                 }
 
                 Button(
@@ -394,7 +394,7 @@ fun FlightDealCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = selectButtonLabel ?: "En Vivo",
+                        text = selectButtonLabel ?: "Ir al día",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )

@@ -28,7 +28,7 @@ enum class Airline(
         standardSeatMxn = 199,
         extraLegroomSeatMxn = 449,
         includesCarryOnInBase = false,
-        officialPromoUrl = "https://www.volaris.com/es-mx/vuelos-en-oferta"
+        officialPromoUrl = "https://www.volaris.com/es-mx/"
     ),
     VIVA_AEROBUS(
         iataCode = "VB",
@@ -40,7 +40,7 @@ enum class Airline(
         standardSeatMxn = 185,
         extraLegroomSeatMxn = 420,
         includesCarryOnInBase = false,
-        officialPromoUrl = "https://www.vivaaerobus.com/es-mx/promociones"
+        officialPromoUrl = "https://www.vivaaerobus.com/es-mx"
     ),
     AEROMEXICO(
         iataCode = "AM",
