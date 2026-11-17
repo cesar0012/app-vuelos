@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -55,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,20 +67,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.model.Airport
 import com.example.model.AirportCategory
 import com.example.model.AirportData
-import com.example.ui.theme.CardBorder
-import com.example.ui.theme.CardElevated
-import com.example.ui.theme.CardHighest
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.GreenTint
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.PinkTint
-import com.example.ui.theme.SurfaceNavy
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
 import com.example.viewmodel.AirportDialogMode
 
 @Composable
@@ -85,15 +75,19 @@ fun CheapTravelTopHeader(
     selectedOrigins: List<String>,
     selectedDestinations: List<String>,
     gpsBanner: String?,
+    isDarkMode: Boolean = false,
+    onToggleTheme: () -> Unit = {},
     onOpenOriginsDialog: () -> Unit,
     onOpenDestinationsDialog: () -> Unit,
     onRemoveOrigin: (String) -> Unit,
     onRemoveDestination: (String) -> Unit,
     onDetectGps: () -> Unit
 ) {
+    val colors = AppTheme.colors
+
     Surface(
-        color = SurfaceNavy,
-        tonalElevation = 4.dp,
+        color = colors.surfaceNavy,
+        tonalElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -109,7 +103,8 @@ fun CheapTravelTopHeader(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Box(
                         modifier = Modifier
@@ -117,7 +112,7 @@ fun CheapTravelTopHeader(
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 Brush.linearGradient(
-                                    colors = listOf(NeonCyan, NeonPink)
+                                    colors = listOf(colors.neonCyan, colors.neonPink)
                                 )
                             ),
                         contentAlignment = Alignment.Center
@@ -125,7 +120,7 @@ fun CheapTravelTopHeader(
                         Icon(
                             imageVector = Icons.Default.Radar,
                             contentDescription = "Radar Cheap Travel",
-                            tint = DeepNightBg,
+                            tint = colors.onAccent,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -133,69 +128,34 @@ fun CheapTravelTopHeader(
                         Text(
                             text = "Cheap Travel",
                             style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary,
-                            maxLines = 1
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Radar de Vuelos MX + TUA Real",
                             style = MaterialTheme.typography.labelMedium,
-                            color = NeonCyan,
-                            maxLines = 1
+                            color = colors.neonCyan,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = onOpenOriginsDialog,
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = CyanTint,
-                            contentColor = NeonCyan
-                        ),
+                    IconButton(
+                        onClick = onToggleTheme,
                         modifier = Modifier
-                            .heightIn(min = 40.dp)
-                            .testTag("top_origins_button")
+                            .minimumInteractiveComponentSize()
+                            .testTag("theme_toggle_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FlightTakeoff,
-                            contentDescription = "Seleccionar orígenes",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (selectedOrigins.isEmpty()) "Origen" else "Orig (${selectedOrigins.size})",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    OutlinedButton(
-                        onClick = onOpenDestinationsDialog,
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.6f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = PinkTint,
-                            contentColor = NeonPink
-                        ),
-                        modifier = Modifier
-                            .heightIn(min = 40.dp)
-                            .testTag("top_destinations_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FlightLand,
-                            contentDescription = "Seleccionar destinos",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (selectedDestinations.isEmpty()) "Dest" else "Dest (${selectedDestinations.size})",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold
+                            imageVector = if (isDarkMode) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                            contentDescription = if (isDarkMode) "Cambiar a modo claro" else "Cambiar a modo oscuro",
+                            tint = if (isDarkMode) colors.neonGold else colors.textPrimary
                         )
                     }
 
@@ -208,18 +168,79 @@ fun CheapTravelTopHeader(
                         Icon(
                             imageVector = Icons.Default.MyLocation,
                             contentDescription = "Detectar aeropuerto cercano por GPS",
-                            tint = NeonGreen
+                            tint = colors.neonGreen
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onOpenOriginsDialog,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    border = BorderStroke(1.dp, colors.neonCyan.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = colors.cyanTint,
+                        contentColor = colors.neonCyan
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 40.dp)
+                        .testTag("top_origins_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FlightTakeoff,
+                        contentDescription = "Seleccionar orígenes",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (selectedOrigins.isEmpty()) "Origen: Todos" else "Orígenes (${selectedOrigins.size})",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = onOpenDestinationsDialog,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    border = BorderStroke(1.dp, colors.neonPink.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = colors.pinkTint,
+                        contentColor = colors.neonPink
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 40.dp)
+                        .testTag("top_destinations_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FlightLand,
+                        contentDescription = "Seleccionar destinos",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (selectedDestinations.isEmpty()) "Destino: Todos" else "Destinos (${selectedDestinations.size})",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
                 }
             }
 
             if (!gpsBanner.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Surface(
-                    color = GreenTint,
+                    color = colors.greenTint,
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, colors.neonGreen.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -230,13 +251,13 @@ fun CheapTravelTopHeader(
                         Icon(
                             imageVector = Icons.Default.GpsFixed,
                             contentDescription = null,
-                            tint = NeonGreen,
+                            tint = colors.neonGreen,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = gpsBanner,
                             style = MaterialTheme.typography.bodySmall,
-                            color = NeonGreen,
+                            color = colors.neonGreen,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -258,7 +279,7 @@ fun CheapTravelTopHeader(
                     item(key = "all_origins") {
                         RemovableSummaryChip(
                             label = "Origen: Todos MX",
-                            accentColor = NeonCyan,
+                            accentColor = colors.neonCyan,
                             showClose = false,
                             onClick = onOpenOriginsDialog,
                             onRemove = {},
@@ -270,7 +291,7 @@ fun CheapTravelTopHeader(
                         val city = AirportData.findByCode(code)?.city ?: code
                         RemovableSummaryChip(
                             label = "Sale: $code ($city)",
-                            accentColor = NeonCyan,
+                            accentColor = colors.neonCyan,
                             showClose = true,
                             onClick = onOpenOriginsDialog,
                             onRemove = { onRemoveOrigin(code) },
@@ -283,7 +304,7 @@ fun CheapTravelTopHeader(
                     item(key = "any_dest") {
                         RemovableSummaryChip(
                             label = "Destino: Cualquiera",
-                            accentColor = NeonPink,
+                            accentColor = colors.neonPink,
                             showClose = false,
                             onClick = onOpenDestinationsDialog,
                             onRemove = {},
@@ -295,7 +316,7 @@ fun CheapTravelTopHeader(
                         val city = AirportData.findByCode(code)?.city ?: code
                         RemovableSummaryChip(
                             label = "Va a: $code ($city)",
-                            accentColor = NeonPink,
+                            accentColor = colors.neonPink,
                             showClose = true,
                             onClick = onOpenDestinationsDialog,
                             onRemove = { onRemoveDestination(code) },
@@ -305,21 +326,22 @@ fun CheapTravelTopHeader(
                 }
             }
         }
-        HorizontalDivider(color = CardBorder, thickness = 1.dp)
+        HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
     }
 }
 
 @Composable
 private fun RemovableSummaryChip(
     label: String,
-    accentColor: androidx.compose.ui.graphics.Color,
+    accentColor: Color,
     showClose: Boolean,
     onClick: () -> Unit,
     onRemove: () -> Unit,
     testTag: String
 ) {
+    val colors = AppTheme.colors
     Surface(
-        color = accentColor.copy(alpha = 0.14f),
+        color = accentColor.copy(alpha = 0.12f),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, accentColor.copy(alpha = 0.55f)),
         modifier = Modifier
@@ -338,7 +360,7 @@ private fun RemovableSummaryChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = TextPrimary,
+                color = colors.textPrimary,
                 maxLines = 1
             )
             if (showClose) {
@@ -373,6 +395,7 @@ fun AirportSelectorDialog(
     onDismiss: () -> Unit
 ) {
     BackHandler(onBack = onDismiss)
+    val colors = AppTheme.colors
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember {
@@ -402,9 +425,9 @@ fun AirportSelectorDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            color = SurfaceNavy,
+            color = colors.surfaceNavy,
             shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, CardBorder),
+            border = BorderStroke(1.dp, colors.cardBorder),
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .heightIn(max = 640.dp)
@@ -423,7 +446,7 @@ fun AirportSelectorDialog(
                                 "Aeropuertos de Destino"
                             },
                             style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                         Text(
                             text = if (mode == AirportDialogMode.ORIGINS) {
@@ -432,7 +455,7 @@ fun AirportSelectorDialog(
                                 "Elige destinos específicos o deja vacío para Cualquier destino"
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = colors.textSecondary
                         )
                     }
                     IconButton(
@@ -444,7 +467,7 @@ fun AirportSelectorDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Cerrar selector",
-                            tint = TextSecondary
+                            tint = colors.textSecondary
                         )
                     }
                 }
@@ -458,10 +481,10 @@ fun AirportSelectorDialog(
                             onDismiss()
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = GreenTint,
-                            contentColor = NeonGreen
+                            containerColor = colors.greenTint,
+                            contentColor = colors.neonGreen
                         ),
-                        border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.6f)),
+                        border = BorderStroke(1.dp, colors.neonGreen.copy(alpha = 0.6f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 48.dp)
@@ -482,7 +505,7 @@ fun AirportSelectorDialog(
                 } else if (selectedCodes.isNotEmpty()) {
                     OutlinedButton(
                         onClick = onClearAll,
-                        border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.dp, colors.neonPink.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 44.dp)
@@ -490,7 +513,7 @@ fun AirportSelectorDialog(
                     ) {
                         Text(
                             text = "Cambiar a Cualquier destino",
-                            color = NeonPink
+                            color = colors.neonPink
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
@@ -504,7 +527,7 @@ fun AirportSelectorDialog(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = NeonCyan
+                            tint = colors.neonCyan
                         )
                     },
                     trailingIcon = {
@@ -513,17 +536,17 @@ fun AirportSelectorDialog(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Limpiar búsqueda",
-                                    tint = TextSecondary
+                                    tint = colors.textSecondary
                                 )
                             }
                         }
                     },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonCyan,
-                        unfocusedBorderColor = CardBorder,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = colors.neonCyan,
+                        unfocusedBorderColor = colors.cardBorder,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -543,16 +566,16 @@ fun AirportSelectorDialog(
                             onClick = { selectedCategory = cat },
                             label = { Text(cat.label) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = CyanTint,
-                                selectedLabelColor = NeonCyan,
-                                containerColor = CardElevated,
-                                labelColor = TextSecondary
+                                selectedContainerColor = colors.cyanTint,
+                                selectedLabelColor = colors.neonCyan,
+                                containerColor = colors.cardElevated,
+                                labelColor = colors.textSecondary
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = active,
-                                selectedBorderColor = NeonCyan,
-                                borderColor = CardBorder
+                                selectedBorderColor = colors.neonCyan,
+                                borderColor = colors.cardBorder
                             ),
                             modifier = Modifier.testTag("airport_category_${cat.name.lowercase()}")
                         )
@@ -572,7 +595,7 @@ fun AirportSelectorDialog(
                         AirportOptionRow(
                             airport = airport,
                             isSelected = isSelected,
-                            accentColor = if (mode == AirportDialogMode.ORIGINS) NeonCyan else NeonPink,
+                            accentColor = if (mode == AirportDialogMode.ORIGINS) colors.neonCyan else colors.neonPink,
                             onClick = { onToggleAirport(airport.code) }
                         )
                     }
@@ -588,7 +611,7 @@ fun AirportSelectorDialog(
                         onClick = onDismiss,
                         modifier = Modifier.minimumInteractiveComponentSize()
                     ) {
-                        Text("Listo", color = NeonCyan, fontWeight = FontWeight.Bold)
+                        Text("Listo", color = colors.neonCyan, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -600,15 +623,16 @@ fun AirportSelectorDialog(
 private fun AirportOptionRow(
     airport: Airport,
     isSelected: Boolean,
-    accentColor: androidx.compose.ui.graphics.Color,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
+    val colors = AppTheme.colors
     Surface(
-        color = if (isSelected) accentColor.copy(alpha = 0.14f) else CardElevated,
+        color = if (isSelected) accentColor.copy(alpha = 0.12f) else colors.cardElevated,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = if (isSelected) accentColor else CardBorder
+            color = if (isSelected) accentColor else colors.cardBorder
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -623,7 +647,7 @@ private fun AirportOptionRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Surface(
-                color = CardHighest,
+                color = colors.cardHighest,
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f))
             ) {
@@ -640,14 +664,14 @@ private fun AirportOptionRow(
                 Text(
                     text = "${airport.city} · ${airport.stateOrCountry}",
                     style = MaterialTheme.typography.titleSmall,
-                    color = TextPrimary,
+                    color = colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = airport.name,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
+                    color = colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -656,7 +680,7 @@ private fun AirportOptionRow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (airport.isMexican) {
-                        val tuaColor = if (airport.domesticTuaMxn <= 400) NeonGreen else TextMuted
+                        val tuaColor = if (airport.domesticTuaMxn <= 400) colors.neonGreen else colors.textMuted
                         Text(
                             text = "TUA Nac: $${airport.domesticTuaMxn} MXN",
                             style = MaterialTheme.typography.labelSmall,
@@ -666,14 +690,14 @@ private fun AirportOptionRow(
                         Text(
                             text = "Tasa Intl: $${airport.internationalTuaMxn} MXN",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted
+                            color = colors.textMuted
                         )
                     }
                     if (!airport.highlightTag.isNullOrBlank()) {
                         Text(
                             text = airport.highlightTag,
                             style = MaterialTheme.typography.labelSmall,
-                            color = NeonGreen
+                            color = colors.neonGreen
                         )
                     }
                 }
@@ -683,14 +707,14 @@ private fun AirportOptionRow(
                 modifier = Modifier
                     .size(26.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) accentColor else CardHighest),
+                    .background(if (isSelected) accentColor else colors.cardHighest),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Seleccionado",
-                        tint = DeepNightBg,
+                        tint = colors.onAccent,
                         modifier = Modifier.size(16.dp)
                     )
                 }

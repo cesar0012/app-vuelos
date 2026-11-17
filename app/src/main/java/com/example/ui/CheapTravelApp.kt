@@ -40,17 +40,13 @@ import com.example.ui.components.AirportSelectorDialog
 import com.example.ui.components.CheapTravelTopHeader
 import com.example.ui.components.FareBreakdownSheet
 import com.example.ui.components.PromoLocatorDialog
+import com.example.ui.components.RedirectNoticeDialog
 import com.example.ui.screens.AlertsScreen
 import com.example.ui.screens.CalendarPriceScreen
 import com.example.ui.screens.DealsRadarScreen
 import com.example.ui.screens.SearchScreen
-import com.example.ui.theme.CardElevated
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.SurfaceNavy
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
+import com.example.util.BookingLinkHelper
 import com.example.util.LocationDetector
 import com.example.util.NotificationHelper
 import com.example.viewmodel.AirportDialogMode
@@ -64,6 +60,7 @@ fun CheapTravelApp(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val selectedOrigins by viewModel.selectedOrigins.collectAsStateWithLifecycle()
     val selectedDestinations by viewModel.selectedDestinations.collectAsStateWithLifecycle()
@@ -80,6 +77,7 @@ fun CheapTravelApp(
     val alertMatchCounts by viewModel.alertMatchCounts.collectAsStateWithLifecycle()
     val lastScanSummary by viewModel.lastScanSummary.collectAsStateWithLifecycle()
     val liveSyncState by viewModel.liveSyncState.collectAsStateWithLifecycle()
+    val pendingRedirect by viewModel.pendingRedirect.collectAsStateWithLifecycle()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -119,7 +117,8 @@ fun CheapTravelApp(
     if (selectedTab != MainTab.DEALS &&
         airportDialogMode == null &&
         calculatorFlights == null &&
-        promoLocatorDeal == null
+        promoLocatorDeal == null &&
+        pendingRedirect == null
     ) {
         BackHandler {
             viewModel.selectTab(MainTab.DEALS)
@@ -139,8 +138,10 @@ fun CheapTravelApp(
         }
     }
 
+    val themeColors = AppTheme.colors
+
     Scaffold(
-        containerColor = DeepNightBg,
+        containerColor = themeColors.deepNightBg,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -148,6 +149,8 @@ fun CheapTravelApp(
                 selectedOrigins = selectedOrigins,
                 selectedDestinations = selectedDestinations,
                 gpsBanner = gpsBanner,
+                isDarkMode = isDarkMode,
+                onToggleTheme = viewModel::toggleThemeMode,
                 onOpenOriginsDialog = { viewModel.openAirportDialog(AirportDialogMode.ORIGINS) },
                 onOpenDestinationsDialog = { viewModel.openAirportDialog(AirportDialogMode.DESTINATIONS) },
                 onRemoveOrigin = viewModel::removeOriginChip,
@@ -157,8 +160,8 @@ fun CheapTravelApp(
         },
         bottomBar = {
             NavigationBar(
-                containerColor = SurfaceNavy,
-                contentColor = TextPrimary
+                containerColor = themeColors.surfaceNavy,
+                contentColor = themeColors.textPrimary
             ) {
                 MainTab.entries.forEach { tab ->
                     val selected = selectedTab == tab
@@ -180,11 +183,11 @@ fun CheapTravelApp(
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = NeonCyan,
-                            selectedTextColor = NeonCyan,
-                            indicatorColor = CyanTint,
-                            unselectedIconColor = TextSecondary,
-                            unselectedTextColor = TextSecondary
+                            selectedIconColor = themeColors.neonCyan,
+                            selectedTextColor = themeColors.neonCyan,
+                            indicatorColor = themeColors.cyanTint,
+                            unselectedIconColor = themeColors.textSecondary,
+                            unselectedTextColor = themeColors.textSecondary
                         ),
                         modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
                     )
@@ -206,7 +209,8 @@ fun CheapTravelApp(
                     onMaxBaseFareChange = viewModel::setDealMaxBaseFare,
                     onSortOrderChange = viewModel::setDealSortOrder,
                     onOpenCalculator = { deal -> viewModel.openCalculator(deal, null) },
-                    onOpenPromoLocator = viewModel::openPromoLocator
+                    onOpenPromoLocator = viewModel::openPromoLocator,
+                    onRequestExternalRedirect = viewModel::requestExternalRedirect
                 )
 
                 MainTab.SEARCH -> SearchScreen(
@@ -216,7 +220,8 @@ fun CheapTravelApp(
                     onAirlineFilterChange = viewModel::setSearchAirlineFilter,
                     onSortOrderChange = viewModel::setSearchSortOrder,
                     onOpenCalculator = { deal -> viewModel.openCalculator(deal, null) },
-                    onOpenPromoLocator = viewModel::openPromoLocator
+                    onOpenPromoLocator = viewModel::openPromoLocator,
+                    onRequestExternalRedirect = viewModel::requestExternalRedirect
                 )
 
                 MainTab.CALENDAR -> CalendarPriceScreen(
@@ -238,7 +243,8 @@ fun CheapTravelApp(
                     onOpenCalculator = viewModel::openCalculator,
                     onOpenPromoLocator = viewModel::openPromoLocator,
                     onClearPlan = viewModel::clearTripPlan,
-                    onShowMessage = viewModel::showMessage
+                    onShowMessage = viewModel::showMessage,
+                    onRequestExternalRedirect = viewModel::requestExternalRedirect
                 )
 
                 MainTab.ALERTS -> AlertsScreen(
@@ -296,6 +302,7 @@ fun CheapTravelApp(
         FareBreakdownSheet(
             outbound = outbound,
             returnFlight = returnFlight,
+            onRequestExternalRedirect = viewModel::requestExternalRedirect,
             onDismiss = viewModel::closeCalculator
         )
     }
@@ -303,7 +310,21 @@ fun CheapTravelApp(
     promoLocatorDeal?.let { deal ->
         PromoLocatorDialog(
             deal = deal,
+            onRequestExternalRedirect = viewModel::requestExternalRedirect,
             onDismiss = viewModel::closePromoLocator
+        )
+    }
+
+    pendingRedirect?.let { request ->
+        RedirectNoticeDialog(
+            request = request,
+            onCountdownFinished = { completed ->
+                viewModel.clearPendingRedirect()
+                completed.urls.forEach { url ->
+                    BookingLinkHelper.openExternalUrl(context, url)
+                }
+            },
+            onCancel = viewModel::clearPendingRedirect
         )
     }
 }

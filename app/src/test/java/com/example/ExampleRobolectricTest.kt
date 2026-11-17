@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -209,5 +210,152 @@ class ExampleRobolectricTest {
         assertEquals(212, primaryLive.baseFareMxn)
         assertTrue(aguPvrOn17.filter { !it.isLiveVerified }.all { it.baseFareMxn >= 212 + 120 })
         assertFalse(aguPvrOn17.any { !it.isLiveVerified && it.baseFareMxn < 212 })
+    }
+
+    @Test
+    fun `airTrfxParser extracts Viva Aerobus additionalFeesAmount TUA and applies live route URL`() {
+        val vivaHtml = """
+            <html><body>
+            <script id="__NEXT_DATA__" type="application/json">{
+              "props": {
+                "pageProps": {
+                  "apolloState": {
+                    "data": {
+                      "StandardFareModule:1": {
+                        "fares": [
+                          {
+                            "originAirportCode": "NLU",
+                            "destinationAirportCode": "CUN",
+                            "departureDate": "2026-11-18",
+                            "totalPrice": 256.55,
+                            "currencyCode": "MXN",
+                            "flightType": "ONE_WAY",
+                            "airline": { "iataCode": "VB" },
+                            "lastSeen": { "value": 10, "unit": "minute" }
+                          }
+                        ]
+                      },
+                      "Component:fare-daily-histogram": {
+                        "cmpConfig": {
+                          "settings": {
+                            "initialState": {
+                              "dailyHistogram": [
+                                {
+                                  "journeyType": "ONE_WAY",
+                                  "departureDate": "2026-11-20",
+                                  "priceSpecification": {
+                                    "totalPrice": 277.27,
+                                    "additionalFeesAmount": 652.95,
+                                    "currencyCode": "MXN"
+                                  },
+                                  "outboundFlight": {
+                                    "departureAirportIataCode": "NLU",
+                                    "arrivalAirportIataCode": "CUN"
+                                  },
+                                  "airline": { "iataCode": "VB" }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }</script></body></html>
+        """.trimIndent()
+
+        val vivaRouteUrl = "https://www.vivaaerobus.com/es-mx/vuelos-desde-felipe-angeles-cdmx-a-cancun"
+        val fares = AirTrfxParser.parseFaresFromHtml(vivaHtml, Airline.VIVA_AEROBUS, vivaRouteUrl)
+        assertEquals(2, fares.size)
+
+        val nov20 = fares.first { it.departureDate.isoString == "2026-11-20" }
+        assertEquals(278, nov20.baseFareMxn)
+        assertEquals(653, nov20.tuaMxn)
+
+        // Propagated route TUA from histogram to StandardFareModule entry on Nov 18
+        val nov18 = fares.first { it.departureDate.isoString == "2026-11-18" }
+        assertEquals(257, nov18.baseFareMxn)
+        assertEquals(653, nov18.tuaMxn)
+
+        val repo = FlightDealsRepository(baseDate = TravelDate(2026, 11, 12))
+        repo.applyLiveFares(fares)
+
+        val nluCunVivaNov20 = repo.getDealsForRoute("NLU", "CUN")
+            .first { it.airline == Airline.VIVA_AEROBUS && it.departureDate.isoString == "2026-11-20" && it.isLiveVerified }
+        assertEquals(278, nluCunVivaNov20.baseFareMxn)
+        assertEquals(653, nluCunVivaNov20.originTuaMxn)
+        assertEquals(278 + 653, nluCunVivaNov20.totalWithTuaMxn)
+        assertEquals(vivaRouteUrl, nluCunVivaNov20.liveBookingUrl)
+
+        // Unscraped date on same live Viva route must not undercut live minimum (257)
+        val unscrapedNov25 = repo.getDealsForRoute("NLU", "CUN")
+            .first { it.airline == Airline.VIVA_AEROBUS && it.departureDate.isoString == "2026-11-25" }
+        assertTrue(unscrapedNov25.baseFareMxn >= 257 + 120)
+        assertEquals(653, unscrapedNov25.originTuaMxn)
+    }
+
+    @Test
+    fun `app defaults to light mode and toggles cleanly to dark mode`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val vm = androidx.lifecycle.ViewModelProvider(composeTestRule.activity)[com.example.viewmodel.CheapTravelViewModel::class.java]
+        val vmPrefs = com.example.data.OriginPreferences(vm.getApplication())
+
+        composeTestRule.waitForIdle()
+        assertFalse("Expected Light Mode by default", vm.isDarkMode.value)
+        assertFalse("Expected Light Mode persisted by default", vmPrefs.isDarkModeEnabled())
+        composeTestRule.onNodeWithTag("theme_toggle_button").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Cambiar a modo oscuro").assertIsDisplayed()
+
+        // Switch from Light (default) -> Dark
+        composeTestRule.onNodeWithTag("theme_toggle_button").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Cambiar a modo claro").assertIsDisplayed()
+        assertTrue(vm.isDarkMode.value)
+        assertTrue(vmPrefs.isDarkModeEnabled())
+
+        // Switch back from Dark -> Light
+        composeTestRule.onNodeWithTag("theme_toggle_button").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Cambiar a modo oscuro").assertIsDisplayed()
+        assertFalse(vm.isDarkMode.value)
+        assertFalse(vmPrefs.isDarkModeEnabled())
+
+        // Verify OriginPreferences persistence across fresh instances
+        val standalonePrefs = com.example.data.OriginPreferences(context)
+        assertFalse(standalonePrefs.isDarkModeEnabled())
+        standalonePrefs.saveDarkModeEnabled(true)
+        assertTrue(com.example.data.OriginPreferences(context).isDarkModeEnabled())
+        standalonePrefs.saveDarkModeEnabled(false)
+        assertFalse(com.example.data.OriginPreferences(context).isDarkModeEnabled())
+    }
+
+    @Test
+    fun `opening any booking link shows 5 second notice with promo date and correction warning`() {
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("deals_radar_list")
+            .performScrollToIndex(3)
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodes(androidx.compose.ui.test.hasText("Ver Promo"))[0]
+            .performScrollTo()
+            .performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("promo_primary_day_btn").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("redirect_notice_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("redirect_notice_promo_date").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("redirect_notice_countdown").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Fecha de la promoción").assertIsDisplayed()
+        composeTestRule.onNodeWithText("5s").assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            "Es posible que tengas que insertar o corregir los datos en el buscador del sitio para mostrar la fecha de la promoción."
+        ).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("redirect_notice_cancel_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("redirect_notice_dialog").assertDoesNotExist()
     }
 }

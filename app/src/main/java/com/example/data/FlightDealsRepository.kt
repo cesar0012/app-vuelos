@@ -939,8 +939,18 @@ class FlightDealsRepository(
         for (fare in fares) {
             val key = fareKey(fare.airline, fare.originCode, fare.destinationCode, fare.departureDate)
             val prev = liveFaresByKey[key]
-            if (prev == null || prev.baseFareMxn != fare.baseFareMxn || prev.lastSeenLabel != fare.lastSeenLabel) {
-                liveFaresByKey[key] = fare
+            val mergedFare = if (fare.tuaMxn == null && prev?.tuaMxn != null) {
+                fare.copy(tuaMxn = prev.tuaMxn)
+            } else {
+                fare
+            }
+            if (prev == null ||
+                prev.baseFareMxn != mergedFare.baseFareMxn ||
+                prev.tuaMxn != mergedFare.tuaMxn ||
+                prev.lastSeenLabel != mergedFare.lastSeenLabel ||
+                prev.sourceUrl != mergedFare.sourceUrl
+            ) {
+                liveFaresByKey[key] = mergedFare
                 changed = true
             }
         }
@@ -964,14 +974,38 @@ class FlightDealsRepository(
     private fun rebuildMergedCatalog(): List<FlightDeal> {
         if (liveFaresByKey.isEmpty()) return baseCatalog
 
+        // Route-level live minimums and exact live TUAs (e.g. Viva Aerobus additionalFeesAmount)
+        val minLivePriceByRouteAirline = HashMap<String, Int>()
+        val routeTuaByAirlineRoute = HashMap<String, Int>()
+        for (scraped in liveFaresByKey.values) {
+            val routeKey = "${scraped.airline.iataCode}_${scraped.originCode}_${scraped.destinationCode}"
+            val currentMin = minLivePriceByRouteAirline[routeKey]
+            if (currentMin == null || scraped.baseFareMxn < currentMin) {
+                minLivePriceByRouteAirline[routeKey] = scraped.baseFareMxn
+            }
+            if (scraped.tuaMxn != null) {
+                routeTuaByAirlineRoute.putIfAbsent(routeKey, scraped.tuaMxn)
+            }
+        }
+
         val matchedKeys = HashSet<String>()
         val primaryUpdatedKeys = HashSet<String>()
 
         val updatedBase = baseCatalog.map { deal ->
             val key = fareKey(deal.airline, deal.originCode, deal.destinationCode, deal.departureDate)
+            val routeKey = "${deal.airline.iataCode}_${deal.originCode}_${deal.destinationCode}"
+            val routeTua = routeTuaByAirlineRoute[routeKey]
             val scraped = liveFaresByKey[key]
             if (scraped == null) {
-                deal
+                val routeMinLive = minLivePriceByRouteAirline[routeKey]
+                if (routeMinLive != null || routeTua != null) {
+                    deal.copy(
+                        baseFareMxn = if (routeMinLive != null) maxOf(deal.baseFareMxn, routeMinLive + 120) else deal.baseFareMxn,
+                        originTuaMxn = routeTua ?: deal.originTuaMxn
+                    )
+                } else {
+                    deal
+                }
             } else {
                 matchedKeys.add(key)
                 val siteLabel = when (deal.airline) {
@@ -979,18 +1013,25 @@ class FlightDealsRepository(
                     Airline.VIVA_AEROBUS -> "VivaAerobus.com"
                     else -> deal.airline.displayName
                 }
+                val resolvedTua = scraped.tuaMxn ?: routeTua ?: deal.originTuaMxn
+                val resolvedLiveUrl = scraped.sourceUrl?.takeIf {
+                    it.contains("/vuelos-desde-") && it.contains("-a-")
+                }
                 if (primaryUpdatedKeys.add(key)) {
                     val ageNote = scraped.lastSeenLabel?.let { " ($it)" } ?: ""
                     deal.copy(
                         baseFareMxn = scraped.baseFareMxn,
+                        originTuaMxn = resolvedTua,
                         isLiveVerified = true,
                         liveSourceLabel = "En vivo · $siteLabel",
-                        promoSourceDescription = "Tarifa real $siteLabel$ageNote"
+                        promoSourceDescription = "Tarifa real $siteLabel$ageNote",
+                        liveBookingUrl = resolvedLiveUrl
                     )
                 } else {
                     // Secondary flight on the same day must not undercut the live minimum fare
                     deal.copy(
                         baseFareMxn = maxOf(deal.baseFareMxn, scraped.baseFareMxn + 120),
+                        originTuaMxn = resolvedTua,
                         isLiveVerified = false,
                         liveSourceLabel = null
                     )
@@ -1006,7 +1047,10 @@ class FlightDealsRepository(
             val distanceKm = originAirport.distanceKmTo(destAirport.latitude, destAirport.longitude)
             val estDurationMin = ((distanceKm / 720.0) * 60.0).roundToInt().coerceIn(45, 420)
             val isIntl = !originAirport.isMexican || !destAirport.isMexican
-            val originTua = originAirport.tuaForFlight(isIntl)
+            val routeKey = "${scraped.airline.iataCode}_${scraped.originCode}_${scraped.destinationCode}"
+            val originTua = scraped.tuaMxn
+                ?: routeTuaByAirlineRoute[routeKey]
+                ?: originAirport.tuaForFlight(isIntl)
             val depHour = 7 + (abs(scraped.originCode.hashCode() + scraped.destinationCode.hashCode()) % 12)
             val depTime = String.format(Locale.US, "%02d:15", depHour)
             val totalArrMin = depHour * 60 + 15 + estDurationMin
@@ -1014,6 +1058,9 @@ class FlightDealsRepository(
             val siteLabel = if (scraped.airline == Airline.VOLARIS) "Volaris.com" else "VivaAerobus.com"
             val flightNum = "${scraped.airline.iataCode} ${1100 + (abs(key.hashCode()) % 7900)}"
             val ageNote = scraped.lastSeenLabel?.let { " ($it)" } ?: ""
+            val resolvedLiveUrl = scraped.sourceUrl?.takeIf {
+                it.contains("/vuelos-desde-") && it.contains("-a-")
+            }
 
             extraLiveDeals.add(
                 FlightDeal(
@@ -1038,7 +1085,8 @@ class FlightDealsRepository(
                     promoSourceDescription = "Tarifa real $siteLabel$ageNote",
                     seatsRemaining = 4,
                     isLiveVerified = true,
-                    liveSourceLabel = "En vivo · $siteLabel"
+                    liveSourceLabel = "En vivo · $siteLabel",
+                    liveBookingUrl = resolvedLiveUrl
                 )
             )
         }

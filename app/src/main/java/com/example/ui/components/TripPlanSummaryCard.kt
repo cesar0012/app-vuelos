@@ -37,25 +37,16 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.model.FlightDeal
-import com.example.ui.theme.CardBorder
-import com.example.ui.theme.CardHighest
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.GoldTint
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGold
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.PinkTint
-import com.example.ui.theme.SurfaceNavy
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
 import com.example.util.BookingLinkHelper
+import com.example.util.PendingRedirectRequest
 import com.example.viewmodel.TripMode
 
 @Composable
@@ -66,9 +57,11 @@ fun TripPlanSummaryCard(
     onOpenCalculator: (FlightDeal, FlightDeal?) -> Unit,
     onClearPlan: () -> Unit,
     onPlanCopied: (String) -> Unit,
+    onRequestExternalRedirect: (PendingRedirectRequest) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (outbound == null) return
+    val colors = AppTheme.colors
     val context = LocalContext.current
 
     val isRoundTripComplete = tripMode == TripMode.ROUND_TRIP && returnFlight != null
@@ -79,9 +72,9 @@ fun TripPlanSummaryCard(
     val grandTotal = baseTotal + tuaTotal
 
     Surface(
-        color = SurfaceNavy,
+        color = colors.surfaceNavy,
         shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.5.dp, if (isSmartMix) NeonPink else NeonCyan),
+        border = BorderStroke(1.5.dp, if (isSmartMix) colors.neonPink else colors.neonCyan),
         modifier = modifier
             .fillMaxWidth()
             .testTag("trip_plan_summary_card")
@@ -99,21 +92,21 @@ fun TripPlanSummaryCard(
                     Text(
                         text = if (tripMode == TripMode.ROUND_TRIP) "Plan Viaje Redondo" else "Plan Solo Ida",
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary
+                        color = colors.textPrimary
                     )
                     if (isSmartMix) {
                         Surface(
-                            color = GoldTint,
+                            color = colors.goldTint,
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, NeonGold.copy(alpha = 0.6f))
+                            border = BorderStroke(1.dp, colors.neonGold.copy(alpha = 0.6f))
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = NeonGold, modifier = Modifier.size(12.dp))
-                                Text("Smart Mix", style = MaterialTheme.typography.labelSmall, color = NeonGold)
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = colors.neonGold, modifier = Modifier.size(12.dp))
+                                Text("Smart Mix", style = MaterialTheme.typography.labelSmall, color = colors.neonGold)
                             }
                         }
                     }
@@ -124,15 +117,15 @@ fun TripPlanSummaryCard(
                         .minimumInteractiveComponentSize()
                         .testTag("clear_trip_plan_button")
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Limpiar plan", tint = TextSecondary)
+                    Icon(Icons.Default.Close, contentDescription = "Limpiar plan", tint = colors.textSecondary)
                 }
             }
 
             // Outbound leg
             LegSummaryRow(
                 badge = "IDA",
-                badgeTint = CyanTint,
-                badgeColor = NeonCyan,
+                badgeTint = colors.cyanTint,
+                badgeColor = colors.neonCyan,
                 icon = Icons.Default.FlightTakeoff,
                 deal = outbound
             )
@@ -143,22 +136,22 @@ fun TripPlanSummaryCard(
                 if (returnFlight != null) {
                     LegSummaryRow(
                         badge = "VUELTA",
-                        badgeTint = PinkTint,
-                        badgeColor = NeonPink,
+                        badgeTint = colors.pinkTint,
+                        badgeColor = colors.neonPink,
                         icon = Icons.Default.FlightLand,
                         deal = returnFlight
                     )
                 } else {
                     Surface(
-                        color = PinkTint,
+                        color = colors.pinkTint,
                         shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.4f)),
+                        border = BorderStroke(1.dp, colors.neonPink.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "Paso 2: Toca una fecha de Regreso en el calendario para completar tu plan.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = NeonPink,
+                            color = colors.neonPink,
                             modifier = Modifier.padding(10.dp)
                         )
                     }
@@ -166,7 +159,7 @@ fun TripPlanSummaryCard(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(color = CardBorder)
+            HorizontalDivider(color = colors.cardBorder)
             Spacer(modifier = Modifier.height(10.dp))
 
             // Price summary
@@ -179,26 +172,26 @@ fun TripPlanSummaryCard(
                     Text(
                         text = "Base $$baseTotal + TUA $$tuaTotal MXN",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = colors.textSecondary
                     )
                     Text(
                         text = "Total Plan: $$grandTotal MXN",
                         style = MaterialTheme.typography.titleLarge,
-                        color = NeonGreen,
+                        color = colors.neonGreen,
                         modifier = Modifier.testTag("trip_plan_total_price")
                     )
                 }
                 OutlinedButton(
                     onClick = { onOpenCalculator(outbound, returnFlight) },
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    border = BorderStroke(1.dp, CardBorder),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     modifier = Modifier
                         .heightIn(min = 44.dp)
                         .testTag("trip_plan_calculator_btn")
                 ) {
-                    Icon(Icons.Outlined.Calculate, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Calculate, contentDescription = null, tint = colors.neonCyan, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Extras", color = TextPrimary, style = MaterialTheme.typography.labelMedium)
+                    Text("Extras", color = colors.textPrimary, style = MaterialTheme.typography.labelMedium)
                 }
             }
 
@@ -208,16 +201,17 @@ fun TripPlanSummaryCard(
             if (!isRoundTripComplete) {
                 Button(
                     onClick = {
-                        BookingLinkHelper.openExternalUrl(
-                            context,
-                            BookingLinkHelper.officialAirlineBookingUrl(
-                                outbound.airline,
-                                outbound.originCode,
-                                outbound.destinationCode
-                            )
+                        val url = BookingLinkHelper.officialAirlineBookingUrl(
+                            airline = outbound.airline,
+                            originCode = outbound.originCode,
+                            destinationCode = outbound.destinationCode,
+                            liveBookingUrl = outbound.liveBookingUrl
+                        )
+                        onRequestExternalRedirect(
+                            BookingLinkHelper.createRedirectRequest(outbound, url)
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = DeepNightBg),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.neonCyan, contentColor = colors.onAccent),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
@@ -228,19 +222,23 @@ fun TripPlanSummaryCard(
                     Text("Buscar Solo Ida en ${outbound.airline.displayName}", fontWeight = FontWeight.Bold)
                 }
             } else if (!isSmartMix) {
-                // Same airline -> direct airline link
                 Button(
                     onClick = {
-                        BookingLinkHelper.openExternalUrl(
-                            context,
-                            BookingLinkHelper.officialAirlineBookingUrl(
-                                outbound.airline,
-                                outbound.originCode,
-                                outbound.destinationCode
+                        val url = BookingLinkHelper.officialAirlineBookingUrl(
+                            airline = outbound.airline,
+                            originCode = outbound.originCode,
+                            destinationCode = outbound.destinationCode,
+                            liveBookingUrl = outbound.liveBookingUrl
+                        )
+                        onRequestExternalRedirect(
+                            BookingLinkHelper.createRedirectRequest(
+                                deal = outbound,
+                                url = url,
+                                returnDeal = returnFlight
                             )
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = DeepNightBg),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.neonCyan, contentColor = colors.onAccent),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
@@ -254,17 +252,18 @@ fun TripPlanSummaryCard(
                     )
                 }
             } else {
-                // Smart Mix (Different airlines) -> 2 independent one-way airline links (Ida + Vuelta al revés Solo Ida)
                 val ret = returnFlight!!
                 val urlOut = BookingLinkHelper.officialAirlineBookingUrl(
-                    outbound.airline,
-                    outbound.originCode,
-                    outbound.destinationCode
+                    airline = outbound.airline,
+                    originCode = outbound.originCode,
+                    destinationCode = outbound.destinationCode,
+                    liveBookingUrl = outbound.liveBookingUrl
                 )
                 val urlRet = BookingLinkHelper.officialAirlineBookingUrl(
-                    ret.airline,
-                    ret.originCode,
-                    ret.destinationCode
+                    airline = ret.airline,
+                    originCode = ret.originCode,
+                    destinationCode = ret.destinationCode,
+                    liveBookingUrl = ret.liveBookingUrl
                 )
 
                 Row(
@@ -272,8 +271,12 @@ fun TripPlanSummaryCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { BookingLinkHelper.openExternalUrl(context, urlOut) },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = DeepNightBg),
+                        onClick = {
+                            onRequestExternalRedirect(
+                                BookingLinkHelper.createRedirectRequest(outbound, urlOut)
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.neonCyan, contentColor = colors.onAccent),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
@@ -284,8 +287,12 @@ fun TripPlanSummaryCard(
                     }
 
                     Button(
-                        onClick = { BookingLinkHelper.openExternalUrl(context, urlRet) },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink, contentColor = TextPrimary),
+                        onClick = {
+                            onRequestExternalRedirect(
+                                BookingLinkHelper.createRedirectRequest(ret, urlRet)
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.neonPink, contentColor = colors.onPinkButton),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
@@ -304,18 +311,24 @@ fun TripPlanSummaryCard(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            BookingLinkHelper.openExternalUrl(context, urlOut)
-                            BookingLinkHelper.openExternalUrl(context, urlRet)
+                            onRequestExternalRedirect(
+                                BookingLinkHelper.createRedirectRequest(
+                                    deal = outbound,
+                                    url = urlOut,
+                                    returnDeal = ret,
+                                    extraUrl = urlRet
+                                )
+                            )
                         },
-                        border = BorderStroke(1.dp, NeonGold.copy(alpha = 0.6f)),
+                        border = BorderStroke(1.dp, colors.neonGold.copy(alpha = 0.6f)),
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 44.dp)
                             .testTag("smart_mix_open_both_btn")
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = NeonGold, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.neonGold, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Abrir ambos", color = NeonGold, style = MaterialTheme.typography.labelMedium)
+                        Text("Abrir ambos", color = colors.neonGold, style = MaterialTheme.typography.labelMedium)
                     }
 
                     OutlinedButton(
@@ -334,15 +347,15 @@ fun TripPlanSummaryCard(
                             cm?.setPrimaryClip(ClipData.newPlainText("Plan Cheap Travel", planText))
                             onPlanCopied("Plan Smart Mix copiado al portapapeles")
                         },
-                        border = BorderStroke(1.dp, CardBorder),
+                        border = BorderStroke(1.dp, colors.cardBorder),
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 44.dp)
                             .testTag("smart_mix_copy_plan_btn")
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Copiar Plan", color = TextPrimary, style = MaterialTheme.typography.labelMedium)
+                        Text("Copiar Plan", color = colors.textPrimary, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -353,13 +366,14 @@ fun TripPlanSummaryCard(
 @Composable
 private fun LegSummaryRow(
     badge: String,
-    badgeTint: androidx.compose.ui.graphics.Color,
-    badgeColor: androidx.compose.ui.graphics.Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    badgeTint: Color,
+    badgeColor: Color,
+    icon: ImageVector,
     deal: FlightDeal
 ) {
+    val colors = AppTheme.colors
     Surface(
-        color = CardHighest,
+        color = colors.cardHighest,
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -382,18 +396,18 @@ private fun LegSummaryRow(
                 Text(
                     text = "${deal.originCode} -> ${deal.destinationCode} · ${deal.departureDate.shortLabelEs} (${deal.departureTime})",
                     style = MaterialTheme.typography.labelLarge,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
                 Text(
                     text = "${deal.airline.displayName} ${deal.flightNumber} · ${deal.stopsLabel}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = colors.textSecondary
                 )
             }
             Text(
                 text = "$${deal.totalWithTuaMxn}",
                 style = MaterialTheme.typography.titleSmall,
-                color = NeonGreen
+                color = colors.neonGreen
             )
         }
     }

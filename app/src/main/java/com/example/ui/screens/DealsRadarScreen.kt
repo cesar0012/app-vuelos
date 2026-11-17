@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,9 +20,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -44,25 +43,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.model.FlightDeal
 import com.example.model.TravelDate
 import com.example.ui.components.FlightDealCard
-import com.example.ui.theme.CardBorder
-import com.example.ui.theme.CardElevated
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.GreenTint
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.PinkTint
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
 import com.example.util.BookingLinkHelper
+import com.example.util.PendingRedirectRequest
 import com.example.viewmodel.DealQuickFilter
 import com.example.viewmodel.DealsRadarUiState
 import com.example.viewmodel.LiveSyncState
@@ -79,9 +68,10 @@ fun DealsRadarScreen(
     onSortOrderChange: (SortOrder) -> Unit,
     onOpenCalculator: (FlightDeal) -> Unit,
     onOpenPromoLocator: (FlightDeal) -> Unit,
+    onRequestExternalRedirect: (PendingRedirectRequest) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    val colors = AppTheme.colors
     val lowestDealFare = state.deals.minOfOrNull { it.baseFareMxn }
     val groupedByDate = remember(state.deals, state.sortOrder) {
         if (state.sortOrder == SortOrder.DATE) {
@@ -94,19 +84,20 @@ fun DealsRadarScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(DeepNightBg)
+            .background(colors.deepNightBg)
             .testTag("deals_radar_list"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(key = "hero_banner") {
             Surface(
-                color = CardElevated,
+                color = colors.cardElevated,
                 shape = RoundedCornerShape(18.dp),
                 border = BorderStroke(
                     1.dp,
-                    Brush.linearGradient(listOf(NeonCyan, NeonPink))
+                    Brush.linearGradient(listOf(colors.neonCyan, colors.neonPink))
                 ),
+                shadowElevation = if (colors.isDark) 0.dp else 1.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -122,22 +113,22 @@ fun DealsRadarScreen(
                             Icon(
                                 imageVector = Icons.Default.Bolt,
                                 contentDescription = null,
-                                tint = NeonPink,
+                                tint = colors.neonPink,
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = "RADAR DE OFERTAS FLASH",
                                 style = MaterialTheme.typography.labelLarge,
-                                color = NeonPink
+                                color = colors.neonPink
                             )
                         }
 
                         Surface(
-                            color = if (liveSyncState.liveFareCount > 0) GreenTint else CyanTint,
+                            color = if (liveSyncState.liveFareCount > 0) colors.greenTint else colors.cyanTint,
                             shape = RoundedCornerShape(10.dp),
                             border = BorderStroke(
                                 1.dp,
-                                if (liveSyncState.liveFareCount > 0) NeonGreen.copy(alpha = 0.6f) else NeonCyan.copy(alpha = 0.5f)
+                                if (liveSyncState.liveFareCount > 0) colors.neonGreen.copy(alpha = 0.6f) else colors.neonCyan.copy(alpha = 0.5f)
                             ),
                             modifier = Modifier
                                 .heightIn(min = 36.dp)
@@ -153,13 +144,13 @@ fun DealsRadarScreen(
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(13.dp),
                                         strokeWidth = 2.dp,
-                                        color = NeonCyan
+                                        color = colors.neonCyan
                                     )
                                 } else {
                                     Icon(
                                         imageVector = if (liveSyncState.liveFareCount > 0) Icons.Default.Wifi else Icons.Default.Refresh,
                                         contentDescription = "Actualizar precios en vivo",
-                                        tint = if (liveSyncState.liveFareCount > 0) NeonGreen else NeonCyan,
+                                        tint = if (liveSyncState.liveFareCount > 0) colors.neonGreen else colors.neonCyan,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -170,7 +161,7 @@ fun DealsRadarScreen(
                                         else -> "Sincronizar"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (liveSyncState.liveFareCount > 0) NeonGreen else NeonCyan,
+                                    color = if (liveSyncState.liveFareCount > 0) colors.neonGreen else colors.neonCyan,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -185,12 +176,12 @@ fun DealsRadarScreen(
                             "Explora tarifas promocionales"
                         },
                         style = MaterialTheme.typography.headlineSmall,
-                        color = TextPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "${state.deals.size} tarifas activas · ${liveSyncState.statusMessage}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -208,16 +199,16 @@ fun DealsRadarScreen(
                         onClick = { onQuickFilterSelected(filter) },
                         label = { Text(filter.label) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = PinkTint,
-                            selectedLabelColor = NeonPink,
-                            containerColor = CardElevated,
-                            labelColor = TextSecondary
+                            selectedContainerColor = colors.pinkTint,
+                            selectedLabelColor = colors.neonPink,
+                            containerColor = colors.cardElevated,
+                            labelColor = colors.textSecondary
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
                             selected = selected,
-                            selectedBorderColor = NeonPink,
-                            borderColor = CardBorder
+                            selectedBorderColor = colors.neonPink,
+                            borderColor = colors.cardBorder
                         ),
                         modifier = Modifier.testTag("deals_quick_filter_${filter.name.lowercase()}")
                     )
@@ -227,9 +218,9 @@ fun DealsRadarScreen(
 
         item(key = "slider_and_sort") {
             Surface(
-                color = CardElevated,
+                color = colors.cardElevated,
                 shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, CardBorder),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -241,12 +232,12 @@ fun DealsRadarScreen(
                         Text(
                             text = "Tarifa base máxima",
                             style = MaterialTheme.typography.labelLarge,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                         Text(
                             text = "Hasta $${state.maxBaseFareMxn.roundToInt()} MXN",
                             style = MaterialTheme.typography.titleSmall,
-                            color = NeonGreen,
+                            color = colors.neonGreen,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -255,9 +246,9 @@ fun DealsRadarScreen(
                         onValueChange = onMaxBaseFareChange,
                         valueRange = 199f..6500f,
                         colors = SliderDefaults.colors(
-                            thumbColor = NeonCyan,
-                            activeTrackColor = NeonCyan,
-                            inactiveTrackColor = CardBorder
+                            thumbColor = colors.neonCyan,
+                            activeTrackColor = colors.neonCyan,
+                            inactiveTrackColor = colors.cardBorder
                         ),
                         modifier = Modifier.testTag("deals_max_fare_slider")
                     )
@@ -283,10 +274,10 @@ fun DealsRadarScreen(
                                     )
                                 },
                                 colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = CyanTint,
-                                    activeContentColor = NeonCyan,
-                                    inactiveContainerColor = DeepNightBg,
-                                    inactiveContentColor = TextSecondary
+                                    activeContainerColor = colors.cyanTint,
+                                    activeContentColor = colors.neonCyan,
+                                    inactiveContainerColor = colors.cardHighest,
+                                    inactiveContentColor = colors.textSecondary
                                 ),
                                 modifier = Modifier.testTag("deals_sort_${order.name.lowercase()}")
                             ) {
@@ -319,14 +310,13 @@ fun DealsRadarScreen(
                         isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                         onOpenCalculator = { onOpenCalculator(deal) },
                         onVerifyGoogleFlights = {
-                            BookingLinkHelper.openExternalUrl(
-                                context,
-                                BookingLinkHelper.officialAirlineBookingUrl(
-                                    deal.airline,
-                                    deal.originCode,
-                                    deal.destinationCode
-                                )
+                            val url = BookingLinkHelper.officialAirlineBookingUrl(
+                                airline = deal.airline,
+                                originCode = deal.originCode,
+                                destinationCode = deal.destinationCode,
+                                liveBookingUrl = deal.liveBookingUrl
                             )
+                            onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
                         },
                         onOpenPromoLocator = { onOpenPromoLocator(deal) }
                     )
@@ -340,14 +330,13 @@ fun DealsRadarScreen(
                     isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                     onOpenCalculator = { onOpenCalculator(deal) },
                     onVerifyGoogleFlights = {
-                        BookingLinkHelper.openExternalUrl(
-                            context,
-                            BookingLinkHelper.officialAirlineBookingUrl(
-                                deal.airline,
-                                deal.originCode,
-                                deal.destinationCode
-                            )
+                        val url = BookingLinkHelper.officialAirlineBookingUrl(
+                            airline = deal.airline,
+                            originCode = deal.originCode,
+                            destinationCode = deal.destinationCode,
+                            liveBookingUrl = deal.liveBookingUrl
                         )
+                        onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
                     },
                     onOpenPromoLocator = { onOpenPromoLocator(deal) }
                 )
@@ -362,6 +351,7 @@ fun DateGroupHeader(
     count: Int,
     hasCompetition: Boolean
 ) {
+    val colors = AppTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -376,29 +366,30 @@ fun DateGroupHeader(
             Icon(
                 imageVector = Icons.Default.CalendarMonth,
                 contentDescription = null,
-                tint = NeonCyan,
+                tint = colors.neonCyan,
                 modifier = Modifier.size(16.dp)
             )
             Text(
                 text = date.fullDayLabelEs,
                 style = MaterialTheme.typography.titleSmall,
-                color = NeonCyan
+                color = colors.neonCyan
             )
         }
         Text(
             text = if (hasCompetition) "$count vuelos · Cabeza a cabeza" else "$count vuelos",
             style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary
+            color = colors.textSecondary
         )
     }
 }
 
 @Composable
 fun EmptyDealsBox(message: String) {
+    val colors = AppTheme.colors
     Surface(
-        color = CardElevated,
+        color = colors.cardElevated,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, CardBorder),
+        border = BorderStroke(1.dp, colors.cardBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -409,20 +400,20 @@ fun EmptyDealsBox(message: String) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(CyanTint, RoundedCornerShape(12.dp)),
+                    .background(colors.cyanTint, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Flight, contentDescription = null, tint = NeonCyan)
+                Icon(Icons.Default.Flight, contentDescription = null, tint = colors.neonCyan)
             }
             Text(
                 text = "Sin coincidencias exactas",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary
+                color = colors.textPrimary
             )
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
+                color = colors.textSecondary
             )
         }
     }

@@ -44,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,29 +51,20 @@ import com.example.model.BaggagePackage
 import com.example.model.FareCalculator
 import com.example.model.FlightDeal
 import com.example.model.SeatOption
-import com.example.ui.theme.CardBorder
-import com.example.ui.theme.CardElevated
-import com.example.ui.theme.CardHighest
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.GreenTint
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.SurfaceNavy
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
 import com.example.util.BookingLinkHelper
+import com.example.util.PendingRedirectRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FareBreakdownSheet(
     outbound: FlightDeal,
     returnFlight: FlightDeal?,
+    onRequestExternalRedirect: (PendingRedirectRequest) -> Unit,
     onDismiss: () -> Unit
 ) {
     BackHandler(onBack = onDismiss)
-    val context = LocalContext.current
+    val colors = AppTheme.colors
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var adults by remember { mutableIntStateOf(1) }
@@ -98,8 +88,8 @@ fun FareBreakdownSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = SurfaceNavy,
-        contentColor = TextPrimary
+        containerColor = colors.surfaceNavy,
+        contentColor = colors.textPrimary
     ) {
         Column(
             modifier = Modifier
@@ -117,7 +107,7 @@ fun FareBreakdownSheet(
                     Text(
                         text = "Calculadora TUA y Extras",
                         style = MaterialTheme.typography.titleLarge,
-                        color = TextPrimary
+                        color = colors.textPrimary
                     )
                     val routeLabel = if (returnFlight != null) {
                         "${outbound.originCode} <-> ${outbound.destinationCode} (Redondo)"
@@ -127,7 +117,7 @@ fun FareBreakdownSheet(
                     Text(
                         text = "$routeLabel · ${outbound.airline.displayName}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = NeonCyan
+                        color = colors.neonCyan
                     )
                 }
                 IconButton(
@@ -136,7 +126,7 @@ fun FareBreakdownSheet(
                         .minimumInteractiveComponentSize()
                         .testTag("sheet_close_button")
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar calculadora", tint = TextSecondary)
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar calculadora", tint = colors.textSecondary)
                 }
             }
 
@@ -146,14 +136,14 @@ fun FareBreakdownSheet(
             Text(
                 text = "Pasajeros",
                 style = MaterialTheme.typography.titleSmall,
-                color = TextPrimary
+                color = colors.textPrimary
             )
             Spacer(modifier = Modifier.height(8.dp))
 
             Surface(
-                color = CardElevated,
+                color = colors.cardElevated,
                 shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, CardBorder),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -166,7 +156,7 @@ fun FareBreakdownSheet(
                         onIncrement = { if (adults < 9) adults++ },
                         tagPrefix = "adults"
                     )
-                    HorizontalDivider(color = CardBorder)
+                    HorizontalDivider(color = colors.cardBorder)
                     PassengerCounterRow(
                         title = "Niños (2 a 11 años)",
                         subtitle = "-10% en tarifa base · Pagan TUA",
@@ -176,7 +166,7 @@ fun FareBreakdownSheet(
                         onIncrement = { if (children < 8) children++ },
                         tagPrefix = "children"
                     )
-                    HorizontalDivider(color = CardBorder)
+                    HorizontalDivider(color = colors.cardBorder)
                     PassengerCounterRow(
                         title = "Bebés en brazos (< 2 años)",
                         subtitle = "Exentos de TUA y tarifa base",
@@ -196,8 +186,8 @@ fun FareBreakdownSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(Icons.Default.Luggage, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
-                Text("Paquete de Equipaje", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                Icon(Icons.Default.Luggage, contentDescription = null, tint = colors.neonCyan, modifier = Modifier.size(18.dp))
+                Text("Paquete de Equipaje", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
             }
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -207,9 +197,9 @@ fun FareBreakdownSheet(
                         (returnFlight?.let { FareCalculator.baggageFeeForAirline(it.airline, pkg) } ?: 0)
                     val selected = selectedBaggage == pkg
                     Surface(
-                        color = if (selected) CyanTint else CardElevated,
+                        color = if (selected) colors.cyanTint else colors.cardElevated,
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, if (selected) NeonCyan else CardBorder),
+                        border = BorderStroke(1.dp, if (selected) colors.neonCyan else colors.cardBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedBaggage = pkg }
@@ -221,13 +211,13 @@ fun FareBreakdownSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(pkg.label, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
-                                Text(pkg.description, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                Text(pkg.label, style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
+                                Text(pkg.description, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
                             }
                             Text(
                                 text = if (fee == 0) "Incluido" else "+$$fee MXN/pax",
                                 style = MaterialTheme.typography.labelLarge,
-                                color = if (fee == 0) NeonGreen else NeonCyan
+                                color = if (fee == 0) colors.neonGreen else colors.neonCyan
                             )
                         }
                     }
@@ -241,8 +231,8 @@ fun FareBreakdownSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(Icons.Default.AirlineSeatReclineExtra, contentDescription = null, tint = NeonPink, modifier = Modifier.size(18.dp))
-                Text("Selección de Asiento", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                Icon(Icons.Default.AirlineSeatReclineExtra, contentDescription = null, tint = colors.neonPink, modifier = Modifier.size(18.dp))
+                Text("Selección de Asiento", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
             }
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -255,9 +245,9 @@ fun FareBreakdownSheet(
                         (returnFlight?.let { FareCalculator.seatFeeForAirline(it.airline, opt) } ?: 0)
                     val selected = selectedSeat == opt
                     Surface(
-                        color = if (selected) CyanTint else CardElevated,
+                        color = if (selected) colors.cyanTint else colors.cardElevated,
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, if (selected) NeonCyan else CardBorder),
+                        border = BorderStroke(1.dp, if (selected) colors.neonCyan else colors.cardBorder),
                         modifier = Modifier
                             .weight(1f)
                             .clickable { selectedSeat = opt }
@@ -270,14 +260,14 @@ fun FareBreakdownSheet(
                             Text(
                                 text = opt.label,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (selected) NeonCyan else TextPrimary,
+                                color = if (selected) colors.neonCyan else colors.textPrimary,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (fee == 0) "$0" else "+$$fee",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (fee == 0) NeonGreen else TextSecondary
+                                color = if (fee == 0) colors.neonGreen else colors.textSecondary
                             )
                         }
                     }
@@ -288,9 +278,9 @@ fun FareBreakdownSheet(
 
             // Breakdown Summary Card
             Surface(
-                color = CardHighest,
+                color = colors.cardHighest,
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.45f)),
+                border = BorderStroke(1.dp, colors.neonCyan.copy(alpha = 0.45f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -310,7 +300,7 @@ fun FareBreakdownSheet(
                     if (returnFlight != null) {
                         BreakdownRow("TUA regreso (${returnFlight.originCode})", "$${breakdown.returnTuaTotalMxn} MXN")
                     }
-                    HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(color = colors.cardBorder, modifier = Modifier.padding(vertical = 4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -319,12 +309,12 @@ fun FareBreakdownSheet(
                         Text(
                             text = "TOTAL FINAL MXN",
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                         Text(
                             text = "$${breakdown.grandTotalMxn} MXN",
                             style = MaterialTheme.typography.headlineSmall,
-                            color = NeonGreen,
+                            color = colors.neonGreen,
                             modifier = Modifier.testTag("calculator_grand_total")
                         )
                     }
@@ -335,9 +325,9 @@ fun FareBreakdownSheet(
 
             // TUA Insight Card
             Surface(
-                color = GreenTint,
+                color = colors.greenTint,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.4f)),
+                border = BorderStroke(1.dp, colors.neonGreen.copy(alpha = 0.4f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -345,11 +335,11 @@ fun FareBreakdownSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Outlined.Savings, contentDescription = null, tint = NeonGreen)
+                    Icon(Icons.Outlined.Savings, contentDescription = null, tint = colors.neonGreen)
                     Text(
                         text = breakdown.tuaInsightNote,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary
+                        color = colors.textPrimary
                     )
                 }
             }
@@ -359,13 +349,23 @@ fun FareBreakdownSheet(
             Button(
                 onClick = {
                     val url = BookingLinkHelper.officialAirlineBookingUrl(
-                        outbound.airline,
-                        outbound.originCode,
-                        outbound.destinationCode
+                        airline = outbound.airline,
+                        originCode = outbound.originCode,
+                        destinationCode = outbound.destinationCode,
+                        liveBookingUrl = outbound.liveBookingUrl
                     )
-                    BookingLinkHelper.openExternalUrl(context, url)
+                    onRequestExternalRedirect(
+                        BookingLinkHelper.createRedirectRequest(
+                            deal = outbound,
+                            url = url,
+                            returnDeal = returnFlight
+                        )
+                    )
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = DeepNightBg),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.neonCyan,
+                    contentColor = colors.onAccent
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
@@ -389,14 +389,15 @@ private fun PassengerCounterRow(
     onIncrement: () -> Unit,
     tagPrefix: String
 ) {
+    val colors = AppTheme.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            Text(title, style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             IconButton(
@@ -406,12 +407,12 @@ private fun PassengerCounterRow(
                     .minimumInteractiveComponentSize()
                     .testTag("${tagPrefix}_minus")
             ) {
-                Icon(Icons.Default.Remove, contentDescription = "Restar $title", tint = if (count > minCount) NeonCyan else TextSecondary)
+                Icon(Icons.Default.Remove, contentDescription = "Restar $title", tint = if (count > minCount) colors.neonCyan else colors.textSecondary)
             }
             Text(
                 text = count.toString(),
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                color = colors.textPrimary,
                 modifier = Modifier.testTag("${tagPrefix}_count")
             )
             IconButton(
@@ -420,7 +421,7 @@ private fun PassengerCounterRow(
                     .minimumInteractiveComponentSize()
                     .testTag("${tagPrefix}_plus")
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Sumar $title", tint = NeonCyan)
+                Icon(Icons.Default.Add, contentDescription = "Sumar $title", tint = colors.neonCyan)
             }
         }
     }
@@ -428,11 +429,12 @@ private fun PassengerCounterRow(
 
 @Composable
 private fun BreakdownRow(label: String, value: String) {
+    val colors = AppTheme.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary, fontWeight = FontWeight.SemiBold)
     }
 }

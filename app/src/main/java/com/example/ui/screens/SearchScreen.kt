@@ -37,24 +37,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.model.Airline
 import com.example.model.FlightDeal
 import com.example.ui.components.FlightDealCard
-import com.example.ui.theme.CardBorder
-import com.example.ui.theme.CardElevated
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.GreenTint
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
 import com.example.util.BookingLinkHelper
+import com.example.util.PendingRedirectRequest
 import com.example.viewmodel.SearchUiState
 import com.example.viewmodel.SortOrder
 import kotlin.math.roundToInt
@@ -68,9 +59,10 @@ fun SearchScreen(
     onSortOrderChange: (SortOrder) -> Unit,
     onOpenCalculator: (FlightDeal) -> Unit,
     onOpenPromoLocator: (FlightDeal) -> Unit,
+    onRequestExternalRedirect: (PendingRedirectRequest) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    val colors = AppTheme.colors
     val groupedByDate = remember(state.results, state.sortOrder) {
         if (state.sortOrder == SortOrder.DATE) {
             state.results.groupBy { it.departureDate }
@@ -82,16 +74,16 @@ fun SearchScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(DeepNightBg)
+            .background(colors.deepNightBg)
             .testTag("search_results_list"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(key = "search_controls") {
             Surface(
-                color = CardElevated,
+                color = colors.cardElevated,
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, CardBorder),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -99,17 +91,17 @@ fun SearchScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.Tune, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Tune, contentDescription = null, tint = colors.neonCyan, modifier = Modifier.size(18.dp))
                         Text(
                             text = "Buscador Flexible Multi-Ruta",
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                     }
                     Text(
                         text = "Filtra combinaciones por presupuesto total con TUA incluido usando los chips superiores.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = colors.textSecondary
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -122,12 +114,12 @@ fun SearchScreen(
                         Text(
                             text = "Presupuesto máx. (Base + TUA)",
                             style = MaterialTheme.typography.labelLarge,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                         Text(
                             text = "$${state.maxTotalMxn.roundToInt()} MXN",
                             style = MaterialTheme.typography.titleSmall,
-                            color = NeonCyan,
+                            color = colors.neonCyan,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -136,9 +128,9 @@ fun SearchScreen(
                         onValueChange = onMaxTotalChange,
                         valueRange = 500f..12000f,
                         colors = SliderDefaults.colors(
-                            thumbColor = NeonPink,
-                            activeTrackColor = NeonPink,
-                            inactiveTrackColor = CardBorder
+                            thumbColor = colors.neonPink,
+                            activeTrackColor = colors.neonPink,
+                            inactiveTrackColor = colors.cardBorder
                         ),
                         modifier = Modifier.testTag("search_budget_slider")
                     )
@@ -151,14 +143,14 @@ fun SearchScreen(
                         Text(
                             text = "Solo vuelos directos",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                         Switch(
                             checked = state.directOnly,
                             onCheckedChange = onDirectOnlyChange,
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = DeepNightBg,
-                                checkedTrackColor = NeonGreen
+                                checkedThumbColor = colors.onAccent,
+                                checkedTrackColor = colors.neonGreen
                             ),
                             modifier = Modifier.testTag("search_direct_only_switch")
                         )
@@ -174,10 +166,10 @@ fun SearchScreen(
                                 onClick = { onAirlineFilterChange(null) },
                                 label = { Text("Todas") },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CyanTint,
-                                    selectedLabelColor = NeonCyan,
-                                    containerColor = DeepNightBg,
-                                    labelColor = TextSecondary
+                                    selectedContainerColor = colors.cyanTint,
+                                    selectedLabelColor = colors.neonCyan,
+                                    containerColor = colors.cardHighest,
+                                    labelColor = colors.textSecondary
                                 ),
                                 modifier = Modifier.testTag("search_airline_all")
                             )
@@ -191,10 +183,10 @@ fun SearchScreen(
                                 },
                                 label = { Text(airline.displayName) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = airline.brandColor.copy(alpha = 0.22f),
-                                    selectedLabelColor = TextPrimary,
-                                    containerColor = DeepNightBg,
-                                    labelColor = TextSecondary
+                                    selectedContainerColor = airline.brandColor.copy(alpha = if (colors.isDark) 0.24f else 0.14f),
+                                    selectedLabelColor = colors.textPrimary,
+                                    containerColor = colors.cardHighest,
+                                    labelColor = colors.textSecondary
                                 ),
                                 modifier = Modifier.testTag("search_airline_${airline.iataCode.lowercase()}")
                             )
@@ -217,10 +209,10 @@ fun SearchScreen(
                                     )
                                 },
                                 colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = GreenTint,
-                                    activeContentColor = NeonGreen,
-                                    inactiveContainerColor = DeepNightBg,
-                                    inactiveContentColor = TextSecondary
+                                    activeContainerColor = colors.greenTint,
+                                    activeContentColor = colors.neonGreen,
+                                    inactiveContainerColor = colors.cardHighest,
+                                    inactiveContentColor = colors.textSecondary
                                 ),
                                 modifier = Modifier.testTag("search_sort_${order.name.lowercase()}")
                             ) {
@@ -236,7 +228,7 @@ fun SearchScreen(
             Text(
                 text = "${state.results.size} resultados encontrados",
                 style = MaterialTheme.typography.labelLarge,
-                color = NeonCyan
+                color = colors.neonCyan
             )
         }
 
@@ -261,14 +253,13 @@ fun SearchScreen(
                         isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                         onOpenCalculator = { onOpenCalculator(deal) },
                         onVerifyGoogleFlights = {
-                            BookingLinkHelper.openExternalUrl(
-                                context,
-                                BookingLinkHelper.officialAirlineBookingUrl(
-                                    deal.airline,
-                                    deal.originCode,
-                                    deal.destinationCode
-                                )
+                            val url = BookingLinkHelper.officialAirlineBookingUrl(
+                                airline = deal.airline,
+                                originCode = deal.originCode,
+                                destinationCode = deal.destinationCode,
+                                liveBookingUrl = deal.liveBookingUrl
                             )
+                            onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
                         },
                         onOpenPromoLocator = { onOpenPromoLocator(deal) }
                     )
@@ -282,14 +273,13 @@ fun SearchScreen(
                     isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                     onOpenCalculator = { onOpenCalculator(deal) },
                     onVerifyGoogleFlights = {
-                        BookingLinkHelper.openExternalUrl(
-                            context,
-                            BookingLinkHelper.officialAirlineBookingUrl(
-                                deal.airline,
-                                deal.originCode,
-                                deal.destinationCode
-                            )
+                        val url = BookingLinkHelper.officialAirlineBookingUrl(
+                            airline = deal.airline,
+                            originCode = deal.originCode,
+                            destinationCode = deal.destinationCode,
+                            liveBookingUrl = deal.liveBookingUrl
                         )
+                        onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
                     },
                     onOpenPromoLocator = { onOpenPromoLocator(deal) }
                 )

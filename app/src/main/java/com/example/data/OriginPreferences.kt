@@ -44,11 +44,19 @@ class OriginPreferences(context: Context) {
         prefs.edit().putString(KEY_DETECTED_AIRPORT, code.uppercase()).apply()
     }
 
+    fun isDarkModeEnabled(): Boolean =
+        prefs.getBoolean(KEY_DARK_MODE_ENABLED, false)
+
+    fun saveDarkModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_MODE_ENABLED, enabled).commit()
+    }
+
     companion object {
         private const val PREFS_NAME = "cheap_travel_prefs"
         private const val KEY_SELECTED_ORIGINS = "selected_origins"
         private const val KEY_SELECTED_DESTINATIONS = "selected_destinations"
         private const val KEY_FIRST_LAUNCH_GPS_DONE = "first_launch_gps_done"
         private const val KEY_DETECTED_AIRPORT = "detected_airport_code"
+        private const val KEY_DARK_MODE_ENABLED = "dark_mode_enabled"
     }
 }

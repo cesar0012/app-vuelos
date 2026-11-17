@@ -17,6 +17,7 @@ import com.example.model.TimePeriod
 import com.example.model.TravelDate
 import com.example.util.LocationDetector
 import com.example.util.NotificationHelper
+import com.example.util.PendingRedirectRequest
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -157,6 +158,9 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     private val _selectedTab = MutableStateFlow(MainTab.DEALS)
     val selectedTab: StateFlow<MainTab> = _selectedTab.asStateFlow()
 
+    private val _isDarkMode = MutableStateFlow(originPreferences.isDarkModeEnabled())
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
     private val _selectedOrigins = MutableStateFlow(originPreferences.getSelectedOrigins())
     val selectedOrigins: StateFlow<List<String>> = _selectedOrigins.asStateFlow()
 
@@ -174,6 +178,9 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _promoLocatorDeal = MutableStateFlow<FlightDeal?>(null)
     val promoLocatorDeal: StateFlow<FlightDeal?> = _promoLocatorDeal.asStateFlow()
+
+    private val _pendingRedirect = MutableStateFlow<PendingRedirectRequest?>(null)
+    val pendingRedirect: StateFlow<PendingRedirectRequest?> = _pendingRedirect.asStateFlow()
 
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
@@ -220,15 +227,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                     .thenBy { it.baseFareMxn }
                     .thenBy { it.totalWithTuaMxn }
                     .thenBy { it.departureDate }
-            ).let { list ->
-                // Sort strictly by price when ALL/other filters, prioritizing live verified ties
-                filtered.sortedWith(
-                    compareBy<FlightDeal> { it.baseFareMxn }
-                        .thenByDescending { it.isLiveVerified }
-                        .thenBy { it.totalWithTuaMxn }
-                        .thenBy { it.departureDate }
-                )
-            }
+            )
             SortOrder.DATE -> filtered.sortedWith(
                 compareBy<FlightDeal> { it.departureDate }
                     .thenByDescending { it.isLiveVerified }
@@ -277,8 +276,8 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         }
         val sorted = when (sortOrder) {
             SortOrder.PRICE -> filtered.sortedWith(
-                compareBy<FlightDeal> { it.totalWithTuaMxn }
-                    .thenByDescending { it.isLiveVerified }
+                compareByDescending<FlightDeal> { it.isLiveVerified }
+                    .thenBy { it.totalWithTuaMxn }
                     .thenBy { it.departureDate }
             )
             SortOrder.DATE -> filtered.sortedWith(
@@ -365,6 +364,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
             }
             try {
                 val origins = _selectedOrigins.value.ifEmpty { listOf("AGU", "MEX", "NLU") }.take(3)
+                val selectedDests = _selectedDestinations.value.take(2)
                 val calCfg = _calendarConfig.value
 
                 val scrapedAll = coroutineScope {
@@ -372,13 +372,18 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                     val originJobs = origins.map { origin ->
                         async { liveScraper.fetchOriginDeals(origin, forceRefresh) }
                     }
+                    val selectedRouteJobs = origins.take(2).flatMap { origin ->
+                        selectedDests.filter { it != origin }.map { dest ->
+                            async { liveScraper.fetchRouteHistogram(origin, dest, forceRefresh) }
+                        }
+                    }
                     val calOutJob = async {
                         liveScraper.fetchRouteHistogram(calCfg.originCode, calCfg.destinationCode, forceRefresh)
                     }
                     val calRetJob = async {
                         liveScraper.fetchRouteHistogram(calCfg.destinationCode, calCfg.originCode, forceRefresh)
                     }
-                    (listOf(globalJob, calOutJob, calRetJob) + originJobs).awaitAll().flatten()
+                    (listOf(globalJob, calOutJob, calRetJob) + originJobs + selectedRouteJobs).awaitAll().flatten()
                 }
 
                 val totalLive = dealsRepository.applyLiveFares(scrapedAll)
@@ -609,6 +614,14 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         _promoLocatorDeal.value = null
     }
 
+    fun requestExternalRedirect(request: PendingRedirectRequest) {
+        _pendingRedirect.value = request
+    }
+
+    fun clearPendingRedirect() {
+        _pendingRedirect.value = null
+    }
+
     fun clearSnackbar() {
         _snackbarMessage.value = null
     }
@@ -650,16 +663,41 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         originPreferences.saveSelectedOrigins(current)
     }
 
+    fun setDarkModeEnabled(enabled: Boolean) {
+        _isDarkMode.value = enabled
+        originPreferences.saveDarkModeEnabled(enabled)
+    }
+
+    fun toggleThemeMode() {
+        setDarkModeEnabled(!_isDarkMode.value)
+    }
+
     fun toggleDestinationSelection(code: String) {
         val upper = code.uppercase()
         val current = _selectedDestinations.value.toMutableList()
-        if (upper in current) {
+        val added = if (upper in current) {
             current.remove(upper)
+            false
         } else {
             current.add(upper)
+            true
         }
         _selectedDestinations.value = current
         originPreferences.saveSelectedDestinations(current)
+        if (added) {
+            val origins = _selectedOrigins.value.ifEmpty { listOf("MEX", "NLU") }.take(2)
+            viewModelScope.launch {
+                val fares = coroutineScope {
+                    origins.filter { it != upper }.map { o ->
+                        async { liveScraper.fetchRouteHistogram(o, upper, forceRefresh = false) }
+                    }.awaitAll().flatten()
+                }
+                if (fares.isNotEmpty()) {
+                    dealsRepository.applyLiveFares(fares)
+                    _catalogVersion.update { it + 1 }
+                }
+            }
+        }
     }
 
     fun removeDestinationChip(code: String) {

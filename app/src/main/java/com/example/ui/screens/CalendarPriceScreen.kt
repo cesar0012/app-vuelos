@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -52,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,21 +63,9 @@ import com.example.model.TimePeriod
 import com.example.model.TravelDate
 import com.example.ui.components.FlightDealCard
 import com.example.ui.components.TripPlanSummaryCard
-import com.example.ui.theme.CardBorder
-import com.example.ui.theme.CardElevated
-import com.example.ui.theme.CardHighest
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.GreenTint
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.PinkTint
-import com.example.ui.theme.SurfaceNavy
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
 import com.example.util.BookingLinkHelper
+import com.example.util.PendingRedirectRequest
 import com.example.viewmodel.CalendarDayCell
 import com.example.viewmodel.CalendarSortOption
 import com.example.viewmodel.CalendarUiState
@@ -109,9 +95,10 @@ fun CalendarPriceScreen(
     onOpenPromoLocator: (FlightDeal) -> Unit,
     onClearPlan: () -> Unit,
     onShowMessage: (String) -> Unit,
+    onRequestExternalRedirect: (PendingRedirectRequest) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    val colors = AppTheme.colors
     var showOriginDropdown by remember { mutableStateOf(false) }
     var showDestDropdown by remember { mutableStateOf(false) }
 
@@ -124,7 +111,7 @@ fun CalendarPriceScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(DeepNightBg)
+            .background(colors.deepNightBg)
             .testTag("calendar_screen_list"),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -132,13 +119,12 @@ fun CalendarPriceScreen(
         // 1. Mode + Route Selector Card
         item(key = "calendar_header_controls") {
             Surface(
-                color = CardElevated,
+                color = colors.cardElevated,
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, CardBorder),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    // Solo Ida vs Viaje Redondo
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         TripMode.entries.forEachIndexed { idx, mode ->
                             SegmentedButton(
@@ -146,10 +132,10 @@ fun CalendarPriceScreen(
                                 onClick = { onTripModeChange(mode) },
                                 shape = SegmentedButtonDefaults.itemShape(idx, TripMode.entries.size),
                                 colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = CyanTint,
-                                    activeContentColor = NeonCyan,
-                                    inactiveContainerColor = DeepNightBg,
-                                    inactiveContentColor = TextSecondary
+                                    activeContainerColor = colors.cyanTint,
+                                    activeContentColor = colors.neonCyan,
+                                    inactiveContainerColor = colors.cardHighest,
+                                    inactiveContentColor = colors.textSecondary
                                 ),
                                 modifier = Modifier.testTag("calendar_mode_${mode.name.lowercase()}")
                             ) {
@@ -158,7 +144,6 @@ fun CalendarPriceScreen(
                         }
                     }
 
-                    // Guided 2-step indicator for Round Trip
                     if (state.tripMode == TripMode.ROUND_TRIP) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Row(
@@ -168,7 +153,7 @@ fun CalendarPriceScreen(
                             StepPill(
                                 label = "1. Salida" + (state.selectedOutboundDate?.let { " (${it.shortLabelEs})" } ?: ""),
                                 isActive = state.roundTripStep == RoundTripStep.OUTBOUND,
-                                accentColor = NeonCyan,
+                                accentColor = colors.neonCyan,
                                 onClick = { onStepChange(RoundTripStep.OUTBOUND) },
                                 modifier = Modifier
                                     .weight(1f)
@@ -177,7 +162,7 @@ fun CalendarPriceScreen(
                             StepPill(
                                 label = "2. Regreso" + (state.selectedReturnDate?.let { " (${it.shortLabelEs})" } ?: ""),
                                 isActive = state.roundTripStep == RoundTripStep.RETURN,
-                                accentColor = NeonPink,
+                                accentColor = colors.neonPink,
                                 onClick = { onStepChange(RoundTripStep.RETURN) },
                                 modifier = Modifier
                                     .weight(1f)
@@ -188,7 +173,6 @@ fun CalendarPriceScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Route selector (Origin <-> Destination with SwapHoriz)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -199,18 +183,18 @@ fun CalendarPriceScreen(
                                 label = "Origen",
                                 code = state.originCode,
                                 city = AirportData.findByCode(state.originCode)?.city ?: state.originCode,
-                                accentColor = NeonCyan,
+                                accentColor = colors.neonCyan,
                                 onClick = { showOriginDropdown = true },
                                 modifier = Modifier.testTag("calendar_origin_picker")
                             )
                             DropdownMenu(
                                 expanded = showOriginDropdown,
                                 onDismissRequest = { showOriginDropdown = false },
-                                modifier = Modifier.background(SurfaceNavy)
+                                modifier = Modifier.background(colors.surfaceNavy)
                             ) {
                                 originAirports.forEach { ap ->
                                     DropdownMenuItem(
-                                        text = { Text("${ap.code} · ${ap.city}", color = TextPrimary) },
+                                        text = { Text("${ap.code} · ${ap.city}", color = colors.textPrimary) },
                                         onClick = {
                                             showOriginDropdown = false
                                             onRouteChange(ap.code, state.destinationCode)
@@ -225,13 +209,13 @@ fun CalendarPriceScreen(
                             modifier = Modifier
                                 .minimumInteractiveComponentSize()
                                 .clip(CircleShape)
-                                .background(CardHighest)
+                                .background(colors.cardHighest)
                                 .testTag("calendar_swap_route_btn")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SwapHoriz,
                                 contentDescription = "Invertir ruta",
-                                tint = NeonCyan
+                                tint = colors.neonCyan
                             )
                         }
 
@@ -240,18 +224,18 @@ fun CalendarPriceScreen(
                                 label = "Destino",
                                 code = state.destinationCode,
                                 city = AirportData.findByCode(state.destinationCode)?.city ?: state.destinationCode,
-                                accentColor = NeonPink,
+                                accentColor = colors.neonPink,
                                 onClick = { showDestDropdown = true },
                                 modifier = Modifier.testTag("calendar_dest_picker")
                             )
                             DropdownMenu(
                                 expanded = showDestDropdown,
                                 onDismissRequest = { showDestDropdown = false },
-                                modifier = Modifier.background(SurfaceNavy)
+                                modifier = Modifier.background(colors.surfaceNavy)
                             ) {
                                 destAirports.forEach { ap ->
                                     DropdownMenuItem(
-                                        text = { Text("${ap.code} · ${ap.city}", color = TextPrimary) },
+                                        text = { Text("${ap.code} · ${ap.city}", color = colors.textPrimary) },
                                         onClick = {
                                             showDestDropdown = false
                                             onRouteChange(state.originCode, ap.code)
@@ -264,7 +248,6 @@ fun CalendarPriceScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // View Toggle: MONTH_GRID vs LIST
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         CalendarViewMode.entries.forEachIndexed { idx, mode ->
                             SegmentedButton(
@@ -279,10 +262,10 @@ fun CalendarPriceScreen(
                                     )
                                 },
                                 colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = PinkTint,
-                                    activeContentColor = NeonPink,
-                                    inactiveContainerColor = DeepNightBg,
-                                    inactiveContentColor = TextSecondary
+                                    activeContainerColor = colors.pinkTint,
+                                    activeContentColor = colors.neonPink,
+                                    inactiveContainerColor = colors.cardHighest,
+                                    inactiveContentColor = colors.textSecondary
                                 ),
                                 modifier = Modifier.testTag("calendar_view_${mode.name.lowercase()}")
                             ) {
@@ -305,10 +288,10 @@ fun CalendarPriceScreen(
                             onClick = { onSortOptionChange(opt) },
                             label = { Text(opt.label) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = CyanTint,
-                                selectedLabelColor = NeonCyan,
-                                containerColor = CardElevated,
-                                labelColor = TextSecondary
+                                selectedContainerColor = colors.cyanTint,
+                                selectedLabelColor = colors.neonCyan,
+                                containerColor = colors.cardElevated,
+                                labelColor = colors.textSecondary
                             ),
                             modifier = Modifier.testTag("cal_sort_${opt.name.lowercase()}")
                         )
@@ -322,10 +305,10 @@ fun CalendarPriceScreen(
                             onClick = { onDirectOnlyChange(!state.directOnly) },
                             label = { Text("Solo Directos") },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = NeonGreen.copy(alpha = 0.2f),
-                                selectedLabelColor = NeonGreen,
-                                containerColor = CardElevated,
-                                labelColor = TextSecondary
+                                selectedContainerColor = colors.greenTint,
+                                selectedLabelColor = colors.neonGreen,
+                                containerColor = colors.cardElevated,
+                                labelColor = colors.textSecondary
                             ),
                             modifier = Modifier.testTag("cal_filter_direct_only")
                         )
@@ -337,10 +320,10 @@ fun CalendarPriceScreen(
                             onClick = { onAirlineFilterChange(if (active) null else airline) },
                             label = { Text(airline.displayName) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = airline.brandColor.copy(alpha = 0.24f),
-                                selectedLabelColor = TextPrimary,
-                                containerColor = CardElevated,
-                                labelColor = TextSecondary
+                                selectedContainerColor = airline.brandColor.copy(alpha = if (colors.isDark) 0.24f else 0.14f),
+                                selectedLabelColor = colors.textPrimary,
+                                containerColor = colors.cardElevated,
+                                labelColor = colors.textSecondary
                             ),
                             modifier = Modifier.testTag("cal_filter_airline_${airline.iataCode.lowercase()}")
                         )
@@ -352,10 +335,10 @@ fun CalendarPriceScreen(
                             onClick = { onTimePeriodChange(if (active) null else period) },
                             label = { Text(period.label) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PinkTint,
-                                selectedLabelColor = NeonPink,
-                                containerColor = CardElevated,
-                                labelColor = TextSecondary
+                                selectedContainerColor = colors.pinkTint,
+                                selectedLabelColor = colors.neonPink,
+                                containerColor = colors.cardElevated,
+                                labelColor = colors.textSecondary
                             ),
                             modifier = Modifier.testTag("cal_filter_time_${period.name.lowercase()}")
                         )
@@ -377,7 +360,6 @@ fun CalendarPriceScreen(
                 )
             }
 
-            // Day details list below the calendar
             val activeDate = if (state.tripMode == TripMode.ROUND_TRIP && state.roundTripStep == RoundTripStep.RETURN) {
                 state.selectedReturnDate
             } else {
@@ -394,7 +376,7 @@ fun CalendarPriceScreen(
                     Text(
                         text = legText,
                         style = MaterialTheme.typography.titleSmall,
-                        color = NeonCyan
+                        color = colors.neonCyan
                     )
                 }
 
@@ -421,14 +403,13 @@ fun CalendarPriceScreen(
                             onSelectForPlan = { onSelectFlightForPlan(deal) },
                             onOpenCalculator = { onOpenCalculator(deal, null) },
                             onVerifyGoogleFlights = {
-                                BookingLinkHelper.openExternalUrl(
-                                    context,
-                                    BookingLinkHelper.officialAirlineBookingUrl(
-                                        deal.airline,
-                                        deal.originCode,
-                                        deal.destinationCode
-                                    )
+                                val url = BookingLinkHelper.officialAirlineBookingUrl(
+                                    airline = deal.airline,
+                                    originCode = deal.originCode,
+                                    destinationCode = deal.destinationCode,
+                                    liveBookingUrl = deal.liveBookingUrl
                                 )
+                                onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
                             },
                             onOpenPromoLocator = { onOpenPromoLocator(deal) }
                         )
@@ -437,22 +418,21 @@ fun CalendarPriceScreen(
             } else {
                 item(key = "tap_day_hint") {
                     Surface(
-                        color = CyanTint,
+                        color = colors.cyanTint,
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
+                        border = BorderStroke(1.dp, colors.neonCyan.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "Toca cualquier fecha con precio en el calendario para ver horarios, escalas y elegir tu vuelo.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = NeonCyan,
+                            color = colors.neonCyan,
                             modifier = Modifier.padding(12.dp)
                         )
                     }
                 }
             }
         } else {
-            // LIST Mode
             item(key = "list_mode_hdr") {
                 val legTitle = if (state.tripMode == TripMode.ROUND_TRIP && state.roundTripStep == RoundTripStep.RETURN) {
                     "Lista de Regreso: ${state.destinationCode} -> ${state.originCode} (${state.chronologicalFlights.size})"
@@ -462,7 +442,7 @@ fun CalendarPriceScreen(
                 Text(
                     text = legTitle,
                     style = MaterialTheme.typography.titleSmall,
-                    color = NeonCyan
+                    color = colors.neonCyan
                 )
             }
             if (state.chronologicalFlights.isEmpty()) {
@@ -488,14 +468,13 @@ fun CalendarPriceScreen(
                         onSelectForPlan = { onSelectFlightForPlan(deal) },
                         onOpenCalculator = { onOpenCalculator(deal, null) },
                         onVerifyGoogleFlights = {
-                            BookingLinkHelper.openExternalUrl(
-                                context,
-                                BookingLinkHelper.officialAirlineBookingUrl(
-                                    deal.airline,
-                                    deal.originCode,
-                                    deal.destinationCode
-                                )
+                            val url = BookingLinkHelper.officialAirlineBookingUrl(
+                                airline = deal.airline,
+                                originCode = deal.originCode,
+                                destinationCode = deal.destinationCode,
+                                liveBookingUrl = deal.liveBookingUrl
                             )
+                            onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
                         },
                         onOpenPromoLocator = { onOpenPromoLocator(deal) }
                     )
@@ -503,7 +482,6 @@ fun CalendarPriceScreen(
             }
         }
 
-        // 4. Trip Plan Summary Card (when outbound selected)
         if (state.selectedOutboundFlight != null) {
             item(key = "trip_plan_summary") {
                 TripPlanSummaryCard(
@@ -512,7 +490,8 @@ fun CalendarPriceScreen(
                     returnFlight = state.selectedReturnFlight,
                     onOpenCalculator = onOpenCalculator,
                     onClearPlan = onClearPlan,
-                    onPlanCopied = onShowMessage
+                    onPlanCopied = onShowMessage,
+                    onRequestExternalRedirect = onRequestExternalRedirect
                 )
             }
         }
@@ -527,10 +506,11 @@ private fun StepPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = AppTheme.colors
     Surface(
-        color = if (isActive) accentColor.copy(alpha = 0.18f) else DeepNightBg,
+        color = if (isActive) accentColor.copy(alpha = 0.14f) else colors.cardHighest,
         shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(1.dp, if (isActive) accentColor else CardBorder),
+        border = BorderStroke(1.dp, if (isActive) accentColor else colors.cardBorder),
         modifier = modifier
             .heightIn(min = 40.dp)
             .clickable(onClick = onClick)
@@ -539,7 +519,7 @@ private fun StepPill(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (isActive) accentColor else TextSecondary,
+                color = if (isActive) accentColor else colors.textSecondary,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1
             )
@@ -556,8 +536,9 @@ private fun RouteAirportButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = AppTheme.colors
     Surface(
-        color = DeepNightBg,
+        color = colors.cardHighest,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, accentColor.copy(alpha = 0.45f)),
         modifier = modifier
@@ -565,9 +546,9 @@ private fun RouteAirportButton(
             .clickable(onClick = onClick)
     ) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Text(text = label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = colors.textSecondary)
             Text(text = code, style = MaterialTheme.typography.titleLarge, color = accentColor)
-            Text(text = city, style = MaterialTheme.typography.bodySmall, color = TextPrimary, maxLines = 1)
+            Text(text = city, style = MaterialTheme.typography.bodySmall, color = colors.textPrimary, maxLines = 1)
         }
     }
 }
@@ -581,18 +562,18 @@ private fun MonthGridCard(
     onNextMonth: () -> Unit,
     onDayClicked: (TravelDate) -> Unit
 ) {
+    val colors = AppTheme.colors
     val weekHeaders = listOf("LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM")
 
     Surface(
-        color = CardElevated,
+        color = colors.cardElevated,
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, CardBorder),
+        border = BorderStroke(1.dp, colors.cardBorder),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("calendar_month_grid")
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Month navigation header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -608,14 +589,14 @@ private fun MonthGridCard(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         contentDescription = "Mes anterior",
-                        tint = if (state.canGoPrevMonth) NeonCyan else TextMuted
+                        tint = if (state.canGoPrevMonth) colors.neonCyan else colors.textMuted
                     )
                 }
 
                 Text(
                     text = state.displayedMonth.monthYearLabelEs,
                     style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
+                    color = colors.textPrimary,
                     modifier = Modifier.testTag("calendar_month_title")
                 )
 
@@ -629,20 +610,19 @@ private fun MonthGridCard(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = "Mes siguiente",
-                        tint = if (state.canGoNextMonth) NeonCyan else TextMuted
+                        tint = if (state.canGoNextMonth) colors.neonCyan else colors.textMuted
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Weekday Headers
             Row(modifier = Modifier.fillMaxWidth()) {
                 weekHeaders.forEach { dayName ->
                     Text(
                         text = dayName,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary,
+                        color = colors.textSecondary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f)
                     )
@@ -651,7 +631,6 @@ private fun MonthGridCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 7-column grid rows
             val rows = state.monthCells.chunked(7)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 rows.forEach { week ->
@@ -682,7 +661,6 @@ private fun MonthGridCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Airline dot legend + Live route sync pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -706,14 +684,14 @@ private fun MonthGridCard(
                             Text(
                                 text = airline.iataCode,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary
+                                color = colors.textSecondary
                             )
                         }
                     }
                 }
 
                 Surface(
-                    color = if (state.liveRouteFaresCount > 0) GreenTint else CyanTint,
+                    color = if (state.liveRouteFaresCount > 0) colors.greenTint else colors.cyanTint,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .clickable(enabled = !liveSyncState.isSyncing, onClick = onRefreshLive)
@@ -728,13 +706,13 @@ private fun MonthGridCard(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(11.dp),
                                 strokeWidth = 1.5.dp,
-                                color = NeonCyan
+                                color = colors.neonCyan
                             )
                         } else {
                             Icon(
                                 imageVector = if (state.liveRouteFaresCount > 0) Icons.Default.Wifi else Icons.Default.Refresh,
                                 contentDescription = "Actualizar fechas en vivo",
-                                tint = if (state.liveRouteFaresCount > 0) NeonGreen else NeonCyan,
+                                tint = if (state.liveRouteFaresCount > 0) colors.neonGreen else colors.neonCyan,
                                 modifier = Modifier.size(12.dp)
                             )
                         }
@@ -745,7 +723,7 @@ private fun MonthGridCard(
                                 else -> "Consultar en vivo"
                             },
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (state.liveRouteFaresCount > 0) NeonGreen else NeonCyan,
+                            color = if (state.liveRouteFaresCount > 0) colors.neonGreen else colors.neonCyan,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -764,22 +742,23 @@ private fun CalendarDayCellBox(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = AppTheme.colors
     val enabled = cell.isInCurrentMonth && cell.isInCatalogRange && cell.lowestBaseFareMxn != null
     val bgColor = when {
         !cell.isInCurrentMonth -> Color.Transparent
-        isOutboundSelected -> CyanTint
-        isReturnSelected -> PinkTint
-        isInRange -> Color(0x1600E5FF)
-        enabled -> DeepNightBg
-        else -> Color(0xFF0A1020)
+        isOutboundSelected -> colors.cyanTint
+        isReturnSelected -> colors.pinkTint
+        isInRange -> colors.neonCyan.copy(alpha = 0.08f)
+        enabled -> colors.cardHighest
+        else -> colors.disabledCellBg
     }
     val borderColor = when {
         !cell.isInCurrentMonth -> Color.Transparent
-        isOutboundSelected -> NeonCyan
-        isReturnSelected -> NeonPink
-        cell.hasLiveFare && enabled -> NeonGreen.copy(alpha = 0.65f)
-        enabled -> CardBorder
-        else -> Color(0xFF141C2E)
+        isOutboundSelected -> colors.neonCyan
+        isReturnSelected -> colors.neonPink
+        cell.hasLiveFare && enabled -> colors.neonGreen.copy(alpha = 0.65f)
+        enabled -> colors.cardBorder
+        else -> colors.disabledCellBorder
     }
 
     Surface(
@@ -803,19 +782,19 @@ private fun CalendarDayCellBox(
                     text = cell.date.dayOfMonth.toString(),
                     style = MaterialTheme.typography.labelMedium,
                     color = when {
-                        isOutboundSelected -> NeonCyan
-                        isReturnSelected -> NeonPink
-                        enabled -> TextPrimary
-                        else -> TextMuted
+                        isOutboundSelected -> colors.neonCyan
+                        isReturnSelected -> colors.neonPink
+                        enabled -> colors.textPrimary
+                        else -> colors.textMuted
                     },
                     fontWeight = if (isOutboundSelected || isReturnSelected) FontWeight.Bold else FontWeight.Medium
                 )
 
                 if (cell.lowestBaseFareMxn != null) {
                     val priceColor = when {
-                        cell.lowestBaseFareMxn <= 249 -> NeonGreen
-                        cell.lowestBaseFareMxn <= 499 -> NeonCyan
-                        else -> TextSecondary
+                        cell.lowestBaseFareMxn <= 249 -> colors.neonGreen
+                        cell.lowestBaseFareMxn <= 499 -> colors.neonCyan
+                        else -> colors.textSecondary
                     }
                     Text(
                         text = "$${cell.lowestBaseFareMxn}",
@@ -839,7 +818,7 @@ private fun CalendarDayCellBox(
                     Text(
                         text = "-",
                         fontSize = 9.sp,
-                        color = TextMuted
+                        color = colors.textMuted
                     )
                 }
             }

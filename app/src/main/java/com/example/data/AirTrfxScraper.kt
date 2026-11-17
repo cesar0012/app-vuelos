@@ -7,6 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -24,6 +26,7 @@ data class ScrapedFare(
     val destinationCode: String,
     val departureDate: TravelDate,
     val baseFareMxn: Int,
+    val tuaMxn: Int? = null,
     val lastSeenLabel: String? = null,
     val sourceUrl: String? = null
 )
@@ -117,13 +120,14 @@ object AirTrfxCitySlugs {
 }
 
 object AirTrfxParser {
-    private val NEXT_DATA_REGEX = Regex(
-        """<script\s+id="__NEXT_DATA__"\s+type="application/json"[^>]*>(.*?)</script>""",
-        setOf(RegexOption.DOT_MATCHES_ALL)
-    )
-
     fun extractNextDataJson(html: String): String? {
-        return NEXT_DATA_REGEX.find(html)?.groupValues?.getOrNull(1)
+        val markerIdx = html.indexOf("id=\"__NEXT_DATA__\"")
+        if (markerIdx < 0) return null
+        val tagEnd = html.indexOf('>', startIndex = markerIdx)
+        if (tagEnd < 0) return null
+        val closeIdx = html.indexOf("</script>", startIndex = tagEnd + 1, ignoreCase = true)
+        if (closeIdx < 0 || closeIdx <= tagEnd + 1) return null
+        return html.substring(tagEnd + 1, closeIdx)
     }
 
     fun parseFaresFromHtml(
@@ -189,7 +193,24 @@ object AirTrfxParser {
         } catch (_: Exception) {
             // Gracefully return whatever fares were parsed before malformed section
         }
-        return collected.values.toList()
+
+        // Propagate route-level TUA (e.g. Viva Aerobus additionalFeesAmount) to sibling entries lacking TUA
+        val routeTuaMap = HashMap<String, Int>()
+        for (fare in collected.values) {
+            if (fare.tuaMxn != null) {
+                val rKey = "${fare.airline.iataCode}_${fare.originCode}_${fare.destinationCode}"
+                routeTuaMap.putIfAbsent(rKey, fare.tuaMxn)
+            }
+        }
+        return collected.values.map { fare ->
+            if (fare.tuaMxn != null) {
+                fare
+            } else {
+                val rKey = "${fare.airline.iataCode}_${fare.originCode}_${fare.destinationCode}"
+                val routeTua = routeTuaMap[rKey]
+                if (routeTua != null) fare.copy(tuaMxn = routeTua) else fare
+            }
+        }
     }
 
     private fun parseStandardFaresArray(
@@ -224,6 +245,9 @@ object AirTrfxParser {
         if (rawPrice.isNaN() || rawPrice <= 0.0) return
         val priceMxn = ceil(rawPrice).toInt()
 
+        val rawFees = item.optDouble("additionalFeesAmount", Double.NaN)
+        val feesMxn = if (!rawFees.isNaN() && rawFees > 0.0) ceil(rawFees).toInt() else null
+
         val airline = resolveAirline(item.optJSONObject("airline")?.optString("iataCode"), defaultAirline)
         val lastSeen = parseLastSeen(item.optJSONObject("lastSeen"))
         putIfCheaper(
@@ -234,6 +258,7 @@ object AirTrfxParser {
                 destinationCode = dest,
                 departureDate = depDate,
                 baseFareMxn = priceMxn,
+                tuaMxn = feesMxn,
                 lastSeenLabel = lastSeen,
                 sourceUrl = sourceUrl
             )
@@ -259,6 +284,9 @@ object AirTrfxParser {
             if (rawPrice.isNaN() || rawPrice <= 0.0) continue
             val priceMxn = ceil(rawPrice).toInt()
 
+            val rawFees = priceSpec.optDouble("additionalFeesAmount", Double.NaN)
+            val feesMxn = if (!rawFees.isNaN() && rawFees > 0.0) ceil(rawFees).toInt() else null
+
             val outbound = item.optJSONObject("outboundFlight") ?: continue
             val origin = normalizeCode(outbound.optString("departureAirportIataCode", "")) ?: continue
             val dest = normalizeCode(outbound.optString("arrivalAirportIataCode", "")) ?: continue
@@ -275,6 +303,7 @@ object AirTrfxParser {
                     destinationCode = dest,
                     departureDate = depDate,
                     baseFareMxn = priceMxn,
+                    tuaMxn = feesMxn,
                     lastSeenLabel = lastSeen,
                     sourceUrl = sourceUrl
                 )
@@ -318,6 +347,12 @@ object AirTrfxParser {
         val key = "${fare.airline.iataCode}_${fare.originCode}_${fare.destinationCode}_${fare.departureDate.isoString}"
         val existing = out[key]
         if (existing == null || fare.baseFareMxn < existing.baseFareMxn) {
+            out[key] = if (fare.tuaMxn == null && existing?.tuaMxn != null) {
+                fare.copy(tuaMxn = existing.tuaMxn)
+            } else {
+                fare
+            }
+        } else if (fare.baseFareMxn == existing.baseFareMxn && existing.tuaMxn == null && fare.tuaMxn != null) {
             out[key] = fare
         }
     }
@@ -331,6 +366,7 @@ class LiveAirlineScraper {
     )
 
     private val pageCache = ConcurrentHashMap<String, CacheEntry>()
+    private val fetchSemaphore = Semaphore(4)
 
     suspend fun fetchGlobalPromos(forceRefresh: Boolean = false): List<ScrapedFare> = coroutineScope {
         val tasks = listOf(
@@ -350,18 +386,19 @@ class LiveAirlineScraper {
         AirTrfxCitySlugs.volarisOriginUrl(o)?.let { requests.add(it to Airline.VOLARIS) }
         AirTrfxCitySlugs.vivaOriginUrl(o)?.let { requests.add(it to Airline.VIVA_AEROBUS) }
 
-        // Also fetch top Volaris 30-day route histograms for key beach/hub routes from this origin
+        // Fetch 30-day & 5-month route histograms for both Volaris and Viva Aerobus on key routes
         val topDests = when (o) {
-            "AGU" -> listOf("PVR", "CUN", "TIJ")
-            "NLU" -> listOf("CUN", "PVR", "GDL")
-            "MEX" -> listOf("CUN", "PVR", "GDL")
-            "GDL" -> listOf("PVR", "CUN", "MTY")
-            "MTY" -> listOf("CUN", "PVR", "GDL")
-            else -> listOf("CUN", "PVR", "MEX")
+            "AGU" -> listOf("PVR", "CUN", "TIJ", "MTY")
+            "NLU" -> listOf("CUN", "PVR", "GDL", "MTY")
+            "MEX" -> listOf("CUN", "PVR", "GDL", "MTY")
+            "GDL" -> listOf("PVR", "CUN", "MTY", "TIJ")
+            "MTY" -> listOf("CUN", "PVR", "GDL", "MEX")
+            else -> listOf("CUN", "PVR", "MEX", "MTY")
         }.filter { it != o }
 
         topDests.forEach { d ->
             AirTrfxCitySlugs.volarisRouteUrl(o, d)?.let { requests.add(it to Airline.VOLARIS) }
+            AirTrfxCitySlugs.vivaRouteUrl(o, d)?.let { requests.add(it to Airline.VIVA_AEROBUS) }
         }
 
         requests.distinctBy { it.first }
@@ -391,24 +428,26 @@ class LiveAirlineScraper {
         url: String,
         airline: Airline,
         forceRefresh: Boolean
-    ): List<ScrapedFare> = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-        if (!forceRefresh) {
-            val cached = pageCache[url]
-            if (cached != null && (now - cached.fetchedAtMs) < CACHE_TTL_MS) {
-                return@withContext cached.fares
+    ): List<ScrapedFare> = fetchSemaphore.withPermit {
+        withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            if (!forceRefresh) {
+                val cached = pageCache[url]
+                if (cached != null && (now - cached.fetchedAtMs) < CACHE_TTL_MS) {
+                    return@withContext cached.fares
+                }
             }
-        }
 
-        val html = downloadHtml(url) ?: return@withContext emptyList()
-        val parsed = AirTrfxParser.parseFaresFromHtml(html, airline, sourceUrl = url)
-        if (parsed.isNotEmpty()) {
-            pageCache[url] = CacheEntry(now, parsed)
+            val jsonText = downloadNextDataJson(url) ?: return@withContext emptyList()
+            val parsed = AirTrfxParser.parseFaresFromNextDataJson(jsonText, airline, sourceUrl = url)
+            if (parsed.isNotEmpty()) {
+                pageCache[url] = CacheEntry(now, parsed)
+            }
+            parsed
         }
-        parsed
     }
 
-    private fun downloadHtml(urlString: String): String? {
+    private fun downloadNextDataJson(urlString: String): String? {
         var conn: HttpURLConnection? = null
         return try {
             val url = URL(urlString)
@@ -432,7 +471,9 @@ class LiveAirlineScraper {
             } else {
                 rawStream
             }
-            BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { it.readText() }
+            BufferedReader(InputStreamReader(stream, Charsets.UTF_8), 16 * 1024).use { reader ->
+                extractNextDataFromReader(reader)
+            }
         } catch (_: Exception) {
             null
         } finally {
@@ -440,9 +481,65 @@ class LiveAirlineScraper {
         }
     }
 
+    private fun extractNextDataFromReader(reader: BufferedReader): String? {
+        val marker = "id=\"__NEXT_DATA__\""
+        val closeTag = "</script>"
+        val rolling = StringBuilder(4096)
+        val jsonBuffer = StringBuilder(64 * 1024)
+        val charBuf = CharArray(8192)
+        var state = 0 // 0: seeking marker, 1: seeking '>', 2: capturing json
+        var totalCharsRead = 0
+
+        while (totalCharsRead < MAX_HTML_SCAN_CHARS) {
+            val read = reader.read(charBuf)
+            if (read <= 0) break
+            totalCharsRead += read
+
+            if (state < 2) {
+                rolling.append(charBuf, 0, read)
+                if (state == 0) {
+                    val mIdx = rolling.indexOf(marker)
+                    if (mIdx >= 0) {
+                        rolling.delete(0, mIdx + marker.length)
+                        state = 1
+                    } else if (rolling.length > marker.length) {
+                        rolling.delete(0, rolling.length - marker.length)
+                    }
+                }
+                if (state == 1) {
+                    val gtIdx = rolling.indexOf(">")
+                    if (gtIdx >= 0) {
+                        val remainder = rolling.substring(gtIdx + 1)
+                        rolling.setLength(0)
+                        jsonBuffer.append(remainder)
+                        state = 2
+                    } else if (rolling.length > 512) {
+                        return null
+                    }
+                }
+            } else {
+                jsonBuffer.append(charBuf, 0, read)
+            }
+
+            if (state == 2) {
+                val searchStart = (jsonBuffer.length - read - closeTag.length).coerceAtLeast(0)
+                val endIdx = jsonBuffer.indexOf(closeTag, startIndex = searchStart, ignoreCase = true)
+                if (endIdx >= 0) {
+                    return jsonBuffer.substring(0, endIdx)
+                }
+                if (jsonBuffer.length > MAX_NEXT_DATA_CHARS) {
+                    return null
+                }
+            }
+        }
+        return null
+    }
+
     companion object {
         const val VOLARIS_OFFERS_URL = "https://www.volaris.com/es-mx/vuelos-en-oferta"
         const val VIVA_MAIN_FLIGHTS_URL = "https://www.vivaaerobus.com/es-mx/vuelos"
         private const val CACHE_TTL_MS = 5 * 60 * 1000L
+        private const val MAX_HTML_SCAN_CHARS = 6 * 1024 * 1024
+        private const val MAX_NEXT_DATA_CHARS = 3 * 1024 * 1024
     }
 }

@@ -45,20 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.AirportData
 import com.example.model.FlightDeal
-import com.example.ui.theme.CardBorder
-import com.example.ui.theme.CardElevated
-import com.example.ui.theme.CardHighest
-import com.example.ui.theme.CyanTint
-import com.example.ui.theme.DeepNightBg
-import com.example.ui.theme.GoldTint
-import com.example.ui.theme.GreenTint
-import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGold
-import com.example.ui.theme.NeonGreen
-import com.example.ui.theme.NeonPink
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.AppTheme
 
 @Composable
 fun FlightDealCard(
@@ -72,18 +59,20 @@ fun FlightDealCard(
     onOpenPromoLocator: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = AppTheme.colors
     val originCity = AirportData.findByCode(deal.originCode)?.city ?: deal.originCode
     val destCity = AirportData.findByCode(deal.destinationCode)?.city ?: deal.destinationCode
     val borderColor = when {
-        isSelectedInPlan -> NeonCyan
-        isHeadToHeadCompetition -> NeonGold.copy(alpha = 0.7f)
-        else -> CardBorder
+        isSelectedInPlan -> colors.neonCyan
+        isHeadToHeadCompetition -> colors.neonGold.copy(alpha = 0.7f)
+        else -> colors.cardBorder
     }
 
     Surface(
-        color = CardElevated,
+        color = colors.cardElevated,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(if (isSelectedInPlan) 1.5.dp else 1.dp, borderColor),
+        shadowElevation = if (colors.isDark) 0.dp else 1.dp,
         modifier = modifier
             .fillMaxWidth()
             .testTag("flight_deal_card_${deal.id}")
@@ -97,7 +86,8 @@ fun FlightDealCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Box(
                         modifier = Modifier
@@ -106,22 +96,22 @@ fun FlightDealCard(
                             .background(deal.airline.brandColor)
                     )
                     Surface(
-                        color = deal.airline.brandColor.copy(alpha = 0.16f),
+                        color = deal.airline.brandColor.copy(alpha = if (colors.isDark) 0.18f else 0.12f),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = "${deal.airline.displayName} · ${deal.flightNumber}",
                             style = MaterialTheme.typography.labelMedium,
-                            color = TextPrimary,
+                            color = colors.textPrimary,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                     if (isHeadToHeadCompetition) {
                         Surface(
-                            color = GoldTint,
+                            color = colors.goldTint,
                             shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, NeonGold.copy(alpha = 0.5f))
+                            border = BorderStroke(1.dp, colors.neonGold.copy(alpha = 0.5f))
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -131,13 +121,13 @@ fun FlightDealCard(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.CompareArrows,
                                     contentDescription = "Competencia directa",
-                                    tint = NeonGold,
+                                    tint = colors.neonGold,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
-                                    text = "Competencia directa",
+                                    text = "Competencia",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = NeonGold
+                                    color = colors.neonGold
                                 )
                             }
                         }
@@ -146,9 +136,9 @@ fun FlightDealCard(
 
                 if (deal.isLiveVerified) {
                     Surface(
-                        color = GreenTint,
+                        color = colors.greenTint,
                         shape = RoundedCornerShape(6.dp),
-                        border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.55f))
+                        border = BorderStroke(1.dp, colors.neonGreen.copy(alpha = 0.55f))
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -158,13 +148,13 @@ fun FlightDealCard(
                             Icon(
                                 imageVector = Icons.Default.Wifi,
                                 contentDescription = "Tarifa verificada en vivo",
-                                tint = NeonGreen,
+                                tint = colors.neonGreen,
                                 modifier = Modifier.size(11.dp)
                             )
                             Text(
                                 text = "En vivo",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = NeonGreen,
+                                color = colors.neonGreen,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -173,7 +163,7 @@ fun FlightDealCard(
                     Text(
                         text = "${deal.seatsRemaining} lugares",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (deal.seatsRemaining <= 3) NeonPink else TextSecondary
+                        color = if (deal.seatsRemaining <= 3) colors.neonPink else colors.textSecondary
                     )
                 }
             }
@@ -194,24 +184,24 @@ fun FlightDealCard(
                         Text(
                             text = deal.originCode,
                             style = MaterialTheme.typography.headlineSmall,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "hacia",
-                            tint = NeonCyan,
+                            tint = colors.neonCyan,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = deal.destinationCode,
                             style = MaterialTheme.typography.headlineSmall,
-                            color = TextPrimary
+                            color = colors.textPrimary
                         )
                     }
                     Text(
                         text = "$originCity a $destCity",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
+                        color = colors.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -219,7 +209,7 @@ fun FlightDealCard(
                     Text(
                         text = "${deal.departureTime} - ${deal.arrivalTime} · ${deal.formattedDuration}",
                         style = MaterialTheme.typography.titleSmall,
-                        color = NeonCyan
+                        color = colors.neonCyan
                     )
                 }
 
@@ -227,22 +217,22 @@ fun FlightDealCard(
                     Text(
                         text = "$${deal.baseFareMxn} MXN",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = if (deal.baseFareMxn <= 299) NeonGreen else NeonCyan
+                        color = if (deal.baseFareMxn <= 299) colors.neonGreen else colors.neonCyan
                     )
                     Text(
                         text = "+ $${deal.originTuaMxn} TUA (${deal.originCode})",
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
+                        color = colors.textSecondary
                     )
                     Surface(
-                        color = CardHighest,
+                        color = colors.cardHighest,
                         shape = RoundedCornerShape(6.dp),
                         modifier = Modifier.padding(top = 3.dp)
                     ) {
                         Text(
                             text = "Total $${deal.totalWithTuaMxn} MXN",
                             style = MaterialTheme.typography.labelMedium,
-                            color = TextPrimary,
+                            color = colors.textPrimary,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
@@ -258,8 +248,8 @@ fun FlightDealCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val stopColor = if (deal.isNonStop) NeonGreen else NeonGold
-                val stopBg = if (deal.isNonStop) GreenTint else GoldTint
+                val stopColor = if (deal.isNonStop) colors.neonGreen else colors.neonGold
+                val stopBg = if (deal.isNonStop) colors.greenTint else colors.goldTint
                 Surface(
                     color = stopBg,
                     shape = RoundedCornerShape(8.dp),
@@ -286,7 +276,7 @@ fun FlightDealCard(
                 }
 
                 Surface(
-                    color = CardHighest,
+                    color = colors.cardHighest,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
@@ -297,13 +287,13 @@ fun FlightDealCard(
                         Icon(
                             imageVector = Icons.Default.AirplanemodeActive,
                             contentDescription = null,
-                            tint = TextSecondary,
+                            tint = colors.textSecondary,
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
                             text = deal.aircraftModel,
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
+                            color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -325,13 +315,13 @@ fun FlightDealCard(
                     Icon(
                         imageVector = Icons.Default.CalendarToday,
                         contentDescription = null,
-                        tint = TextMuted,
+                        tint = colors.textMuted,
                         modifier = Modifier.size(12.dp)
                     )
                     Text(
                         text = deal.departureDate.fullDayLabelEs,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary
+                        color = colors.textPrimary
                     )
                 }
                 Row(
@@ -342,13 +332,13 @@ fun FlightDealCard(
                     Icon(
                         imageVector = Icons.Outlined.LocalOffer,
                         contentDescription = null,
-                        tint = NeonPink,
+                        tint = colors.neonPink,
                         modifier = Modifier.size(12.dp)
                     )
                     Text(
                         text = deal.promoSourceDescription,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
+                        color = colors.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -356,7 +346,7 @@ fun FlightDealCard(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+            HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
             Spacer(modifier = Modifier.height(10.dp))
 
             // Action Buttons Row
@@ -368,7 +358,7 @@ fun FlightDealCard(
                 OutlinedButton(
                     onClick = onOpenCalculator,
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    border = BorderStroke(1.dp, CardBorder),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 44.dp)
@@ -377,17 +367,17 @@ fun FlightDealCard(
                     Icon(
                         imageVector = Icons.Outlined.Calculate,
                         contentDescription = null,
-                        tint = NeonCyan,
+                        tint = colors.neonCyan,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("TUA/Extra", style = MaterialTheme.typography.labelMedium, color = TextPrimary)
+                    Text("TUA/Extra", style = MaterialTheme.typography.labelMedium, color = colors.textPrimary)
                 }
 
                 OutlinedButton(
                     onClick = onOpenPromoLocator,
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, colors.neonPink.copy(alpha = 0.5f)),
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 44.dp)
@@ -396,19 +386,19 @@ fun FlightDealCard(
                     Icon(
                         imageVector = Icons.Outlined.Verified,
                         contentDescription = null,
-                        tint = NeonPink,
+                        tint = colors.neonPink,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ver Promo", style = MaterialTheme.typography.labelMedium, color = NeonPink)
+                    Text("Ver Promo", style = MaterialTheme.typography.labelMedium, color = colors.neonPink)
                 }
 
                 Button(
                     onClick = onSelectForPlan ?: onVerifyGoogleFlights,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelectedInPlan) NeonGreen else NeonCyan,
-                        contentColor = DeepNightBg
+                        containerColor = if (isSelectedInPlan) colors.neonGreen else colors.neonCyan,
+                        contentColor = colors.onAccent
                     ),
                     modifier = Modifier
                         .weight(1.1f)
