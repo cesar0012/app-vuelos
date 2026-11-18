@@ -24,7 +24,7 @@ data class FlightDeal(
     val layoverDurationMinutes: Int? = null,
     val baseFareMxn: Int,
     val originTuaMxn: Int,
-    val isInternational: Boolean,
+    val isInternational: Boolean = false,
     val promoSourceDescription: String,
     val seatsRemaining: Int = 4,
     val isLiveVerified: Boolean = false,
@@ -33,6 +33,36 @@ data class FlightDeal(
 ) {
     val totalWithTuaMxn: Int
         get() = baseFareMxn + originTuaMxn
+
+    fun baggageAddonMxn(tier: PricingBaggageTier): Int =
+        FareCalculator.baggageFeeForAirline(airline, tier.baggagePackage)
+
+    fun effectivePriceMxn(options: PriceDisplayOptions): Int {
+        val baggageAddon = baggageAddonMxn(options.baggageTier)
+        val tua = if (options.includeTua) originTuaMxn else 0
+        return baseFareMxn + baggageAddon + tua
+    }
+
+    fun fareBreakdownSummary(options: PriceDisplayOptions): String {
+        val bagAddon = baggageAddonMxn(options.baggageTier)
+        val parts = mutableListOf<String>()
+        val baseLabel = if (airline.includesCarryOnInBase) "Base (inc. 10kg)" else "Zero"
+        parts.add("$baseLabel $$baseFareMxn")
+        if (bagAddon > 0) {
+            val bagLabel = when (options.baggageTier) {
+                PricingBaggageTier.BASICA_10KG -> if (airline == Airline.VIVA_AEROBUS) "Light 10kg" else "Carry-on 10kg"
+                PricingBaggageTier.PLUS_25KG -> "Equipaje 25kg"
+                PricingBaggageTier.ZERO -> ""
+            }
+            if (bagLabel.isNotEmpty()) parts.add("+$bagLabel $$bagAddon")
+        }
+        if (options.includeTua) {
+            parts.add("+TUA $$originTuaMxn")
+        } else {
+            parts.add("(+$originTuaMxn TUA aparte)")
+        }
+        return parts.joinToString(" ")
+    }
 
     val formattedDuration: String
         get() {

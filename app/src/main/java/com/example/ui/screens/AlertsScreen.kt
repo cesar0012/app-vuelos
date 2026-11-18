@@ -107,7 +107,7 @@ fun AlertsScreen(
                         )
                     }
                     Text(
-                        text = "Guarda rutas objetivo y recibe notificaciones push locales cuando bajen de precio.",
+                        text = "Guarda rutas nacionales en México y recibe notificaciones push locales cuando bajen de precio.",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary
                     )

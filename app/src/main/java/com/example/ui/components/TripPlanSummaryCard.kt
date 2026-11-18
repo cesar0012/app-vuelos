@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.model.FlightDeal
+import com.example.model.PriceDisplayOptions
 import com.example.ui.theme.AppTheme
 import com.example.util.BookingLinkHelper
 import com.example.util.PendingRedirectRequest
@@ -54,6 +55,7 @@ fun TripPlanSummaryCard(
     tripMode: TripMode,
     outbound: FlightDeal?,
     returnFlight: FlightDeal?,
+    priceOptions: PriceDisplayOptions = PriceDisplayOptions(),
     onOpenCalculator: (FlightDeal, FlightDeal?) -> Unit,
     onClearPlan: () -> Unit,
     onPlanCopied: (String) -> Unit,
@@ -68,8 +70,13 @@ fun TripPlanSummaryCard(
     val isSmartMix = isRoundTripComplete && outbound.airline != returnFlight!!.airline
 
     val baseTotal = outbound.baseFareMxn + (returnFlight?.baseFareMxn ?: 0)
-    val tuaTotal = outbound.originTuaMxn + (returnFlight?.originTuaMxn ?: 0)
-    val grandTotal = baseTotal + tuaTotal
+    val bagTotal = outbound.baggageAddonMxn(priceOptions.baggageTier) +
+        (returnFlight?.baggageAddonMxn(priceOptions.baggageTier) ?: 0)
+    val tuaTotal = if (priceOptions.includeTua) {
+        outbound.originTuaMxn + (returnFlight?.originTuaMxn ?: 0)
+    } else 0
+    val grandTotal = outbound.effectivePriceMxn(priceOptions) +
+        (returnFlight?.effectivePriceMxn(priceOptions) ?: 0)
 
     Surface(
         color = colors.surfaceNavy,
@@ -127,7 +134,8 @@ fun TripPlanSummaryCard(
                 badgeTint = colors.cyanTint,
                 badgeColor = colors.neonCyan,
                 icon = Icons.Default.FlightTakeoff,
-                deal = outbound
+                deal = outbound,
+                priceOptions = priceOptions
             )
 
             // Return leg
@@ -139,7 +147,8 @@ fun TripPlanSummaryCard(
                         badgeTint = colors.pinkTint,
                         badgeColor = colors.neonPink,
                         icon = Icons.Default.FlightLand,
-                        deal = returnFlight
+                        deal = returnFlight,
+                        priceOptions = priceOptions
                     )
                 } else {
                     Surface(
@@ -169,8 +178,10 @@ fun TripPlanSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    val bagPart = if (bagTotal > 0) " + Equip. $$bagTotal" else ""
+                    val tuaPart = if (priceOptions.includeTua) " + TUA $$tuaTotal" else " (Sin TUA)"
                     Text(
-                        text = "Base $$baseTotal + TUA $$tuaTotal MXN",
+                        text = "Base $$baseTotal$bagPart$tuaPart · ${priceOptions.baggageTier.chipLabel}",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary
                     )
@@ -369,7 +380,8 @@ private fun LegSummaryRow(
     badgeTint: Color,
     badgeColor: Color,
     icon: ImageVector,
-    deal: FlightDeal
+    deal: FlightDeal,
+    priceOptions: PriceDisplayOptions
 ) {
     val colors = AppTheme.colors
     Surface(
@@ -405,7 +417,7 @@ private fun LegSummaryRow(
                 )
             }
             Text(
-                text = "$${deal.totalWithTuaMxn}",
+                text = "$${deal.effectivePriceMxn(priceOptions)}",
                 style = MaterialTheme.typography.titleSmall,
                 color = colors.neonGreen
             )

@@ -7,10 +7,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 enum class AirportCategory(val label: String) {
-    ALL("Todos"),
-    MEXICO("México"),
+    ALL("Todos MX"),
     BEACH("Playas"),
-    INTERNATIONAL("Internacional")
+    HUBS("Hubs Principales"),
+    REGIONAL("Regionales")
 }
 
 data class Airport(
@@ -21,9 +21,10 @@ data class Airport(
     val latitude: Double,
     val longitude: Double,
     val domesticTuaMxn: Int,
-    val internationalTuaMxn: Int,
-    val isMexican: Boolean,
-    val isBeach: Boolean,
+    val internationalTuaMxn: Int = domesticTuaMxn,
+    val isMexican: Boolean = true,
+    val isBeach: Boolean = false,
+    val isMajorHub: Boolean = false,
     val highlightTag: String? = null
 ) {
     /**
@@ -40,14 +41,15 @@ data class Airport(
         return earthRadiusKm * c
     }
 
-    fun tuaForFlight(isInternationalRoute: Boolean): Int {
+    fun tuaForFlight(isInternationalRoute: Boolean = false): Int {
         return if (isInternationalRoute) internationalTuaMxn else domesticTuaMxn
     }
 }
 
 object AirportData {
+    // Catálogo 100% nacional de aeropuertos mexicanos con TUAs domésticas actualizadas (MXN)
     val airports: List<Airport> = listOf(
-        // Aeropuertos Mexicanos Principales y Regionales
+        // Hubs principales de México
         Airport(
             code = "NLU",
             name = "Aeropuerto Internacional Felipe Ángeles (AIFA)",
@@ -56,10 +58,8 @@ object AirportData {
             latitude = 19.7575,
             longitude = -99.0156,
             domesticTuaMxn = 309,
-            internationalTuaMxn = 615,
-            isMexican = true,
-            isBeach = false,
-            highlightTag = "TUA Ultra Baja (-46% vs AICM)"
+            isMajorHub = true,
+            highlightTag = "TUA Ultra Baja (-52% vs AICM)"
         ),
         Airport(
             code = "MEX",
@@ -68,24 +68,20 @@ object AirportData {
             stateOrCountry = "CDMX",
             latitude = 19.4363,
             longitude = -99.0721,
-            domesticTuaMxn = 570,
-            internationalTuaMxn = 1095,
-            isMexican = true,
-            isBeach = false,
+            domesticTuaMxn = 653,
+            isMajorHub = true,
             highlightTag = "Mayor conectividad"
         ),
         Airport(
-            code = "AGU",
-            name = "Aeropuerto Internacional Lic. Jesús Terán Peredo",
-            city = "Aguascalientes",
-            stateOrCountry = "Aguascalientes",
-            latitude = 21.7056,
-            longitude = -102.3180,
-            domesticTuaMxn = 528,
-            internationalTuaMxn = 995,
-            isMexican = true,
-            isBeach = false,
-            highlightTag = "Hub Bajío $199"
+            code = "TLC",
+            name = "Aeropuerto Internacional de Toluca",
+            city = "Toluca",
+            stateOrCountry = "Estado de México",
+            latitude = 19.3371,
+            longitude = -99.5660,
+            domesticTuaMxn = 452,
+            isMajorHub = true,
+            highlightTag = "Alternativa CDMX TUA media"
         ),
         Airport(
             code = "GDL",
@@ -94,10 +90,8 @@ object AirportData {
             stateOrCountry = "Jalisco",
             latitude = 20.5218,
             longitude = -103.3110,
-            domesticTuaMxn = 535,
-            internationalTuaMxn = 1045,
-            isMexican = true,
-            isBeach = false
+            domesticTuaMxn = 665,
+            isMajorHub = true
         ),
         Airport(
             code = "MTY",
@@ -106,10 +100,9 @@ object AirportData {
             stateOrCountry = "Nuevo León",
             latitude = 25.7785,
             longitude = -100.1070,
-            domesticTuaMxn = 578,
-            internationalTuaMxn = 1120,
-            isMexican = true,
-            isBeach = false
+            domesticTuaMxn = 746,
+            isMajorHub = true,
+            highlightTag = "Hub Viva y Aerus"
         ),
         Airport(
             code = "TIJ",
@@ -118,11 +111,9 @@ object AirportData {
             stateOrCountry = "Baja California",
             latitude = 32.5411,
             longitude = -116.9700,
-            domesticTuaMxn = 516,
-            internationalTuaMxn = 980,
-            isMexican = true,
-            isBeach = false,
-            highlightTag = "Cruce CBX San Diego"
+            domesticTuaMxn = 619,
+            isMajorHub = true,
+            highlightTag = "Hub Norte Volaris"
         ),
         Airport(
             code = "CUN",
@@ -132,11 +123,12 @@ object AirportData {
             latitude = 21.0365,
             longitude = -86.8771,
             domesticTuaMxn = 488,
-            internationalTuaMxn = 990,
-            isMexican = true,
             isBeach = true,
+            isMajorHub = true,
             highlightTag = "Caribe Top"
         ),
+
+        // Destinos Turísticos de Playa en México
         Airport(
             code = "PVR",
             name = "Aeropuerto Internacional Gustavo Díaz Ordaz",
@@ -144,11 +136,9 @@ object AirportData {
             stateOrCountry = "Jalisco",
             latitude = 20.6801,
             longitude = -105.2540,
-            domesticTuaMxn = 470,
-            internationalTuaMxn = 960,
-            isMexican = true,
+            domesticTuaMxn = 530,
             isBeach = true,
-            highlightTag = "TUA Accesible"
+            highlightTag = "Pacífico Top"
         ),
         Airport(
             code = "SJD",
@@ -157,9 +147,7 @@ object AirportData {
             stateOrCountry = "Baja California Sur",
             latitude = 23.1518,
             longitude = -109.7210,
-            domesticTuaMxn = 436,
-            internationalTuaMxn = 940,
-            isMexican = true,
+            domesticTuaMxn = 486,
             isBeach = true
         ),
         Airport(
@@ -170,22 +158,8 @@ object AirportData {
             latitude = 20.1419,
             longitude = -87.6744,
             domesticTuaMxn = 395,
-            internationalTuaMxn = 860,
-            isMexican = true,
             isBeach = true,
             highlightTag = "TUA Baja Caribe"
-        ),
-        Airport(
-            code = "MID",
-            name = "Aeropuerto Internacional Manuel Crescencio Rejón",
-            city = "Mérida",
-            stateOrCountry = "Yucatán",
-            latitude = 20.9370,
-            longitude = -89.6577,
-            domesticTuaMxn = 585,
-            internationalTuaMxn = 1080,
-            isMexican = true,
-            isBeach = false
         ),
         Airport(
             code = "MZT",
@@ -194,22 +168,8 @@ object AirportData {
             stateOrCountry = "Sinaloa",
             latitude = 23.1614,
             longitude = -106.2660,
-            domesticTuaMxn = 542,
-            internationalTuaMxn = 1020,
-            isMexican = true,
+            domesticTuaMxn = 605,
             isBeach = true
-        ),
-        Airport(
-            code = "OAX",
-            name = "Aeropuerto Internacional Xoxocotlán",
-            city = "Oaxaca",
-            stateOrCountry = "Oaxaca",
-            latitude = 16.9999,
-            longitude = -96.7266,
-            domesticTuaMxn = 560,
-            internationalTuaMxn = 1040,
-            isMexican = true,
-            isBeach = false
         ),
         Airport(
             code = "HUX",
@@ -218,9 +178,38 @@ object AirportData {
             stateOrCountry = "Oaxaca",
             latitude = 15.7753,
             longitude = -96.2626,
-            domesticTuaMxn = 568,
-            internationalTuaMxn = 1050,
-            isMexican = true,
+            domesticTuaMxn = 580,
+            isBeach = true
+        ),
+        Airport(
+            code = "PXM",
+            name = "Aeropuerto Internacional de Puerto Escondido",
+            city = "Puerto Escondido",
+            stateOrCountry = "Oaxaca",
+            latitude = 15.8769,
+            longitude = -97.0891,
+            domesticTuaMxn = 490,
+            isBeach = true,
+            highlightTag = "Surf y Playa Oaxaca"
+        ),
+        Airport(
+            code = "ACA",
+            name = "Aeropuerto Internacional General Juan N. Álvarez",
+            city = "Acapulco",
+            stateOrCountry = "Guerrero",
+            latitude = 16.7571,
+            longitude = -99.7540,
+            domesticTuaMxn = 640,
+            isBeach = true
+        ),
+        Airport(
+            code = "ZIH",
+            name = "Aeropuerto Internacional de Ixtapa-Zihuatanejo",
+            city = "Zihuatanejo",
+            stateOrCountry = "Guerrero",
+            latitude = 17.6016,
+            longitude = -101.4610,
+            domesticTuaMxn = 610,
             isBeach = true
         ),
         Airport(
@@ -230,9 +219,7 @@ object AirportData {
             stateOrCountry = "Baja California Sur",
             latitude = 24.0727,
             longitude = -110.3620,
-            domesticTuaMxn = 495,
-            internationalTuaMxn = 930,
-            isMexican = true,
+            domesticTuaMxn = 540,
             isBeach = true
         ),
         Airport(
@@ -242,22 +229,61 @@ object AirportData {
             stateOrCountry = "Quintana Roo",
             latitude = 20.5224,
             longitude = -86.9256,
-            domesticTuaMxn = 442,
-            internationalTuaMxn = 910,
-            isMexican = true,
+            domesticTuaMxn = 470,
             isBeach = true
         ),
         Airport(
-            code = "TGZ",
-            name = "Aeropuerto Internacional Ángel Albino Corzo",
-            city = "Tuxtla Gutiérrez",
-            stateOrCountry = "Chiapas",
-            latitude = 16.5618,
-            longitude = -93.0261,
-            domesticTuaMxn = 548,
-            internationalTuaMxn = 990,
-            isMexican = true,
-            isBeach = false
+            code = "ZLO",
+            name = "Aeropuerto Internacional Playa de Oro",
+            city = "Manzanillo",
+            stateOrCountry = "Colima",
+            latitude = 19.1448,
+            longitude = -104.5586,
+            domesticTuaMxn = 560,
+            isBeach = true
+        ),
+        Airport(
+            code = "LTO",
+            name = "Aeropuerto Internacional de Loreto",
+            city = "Loreto",
+            stateOrCountry = "Baja California Sur",
+            latitude = 25.9892,
+            longitude = -111.3483,
+            domesticTuaMxn = 490,
+            isBeach = true
+        ),
+        Airport(
+            code = "CTM",
+            name = "Aeropuerto Internacional de Chetumal",
+            city = "Chetumal / Bacalar",
+            stateOrCountry = "Quintana Roo",
+            latitude = 18.5047,
+            longitude = -88.3268,
+            domesticTuaMxn = 420,
+            isBeach = true,
+            highlightTag = "Puerta a Bacalar"
+        ),
+        Airport(
+            code = "VER",
+            name = "Aeropuerto Internacional Heriberto Jara",
+            city = "Veracruz",
+            stateOrCountry = "Veracruz",
+            latitude = 19.1459,
+            longitude = -96.1873,
+            domesticTuaMxn = 560,
+            isBeach = true
+        ),
+
+        // Ciudades Culturales, Bajío y Regionales de México
+        Airport(
+            code = "AGU",
+            name = "Aeropuerto Internacional Lic. Jesús Terán Peredo",
+            city = "Aguascalientes",
+            stateOrCountry = "Aguascalientes",
+            latitude = 21.7056,
+            longitude = -102.3180,
+            domesticTuaMxn = 476,
+            highlightTag = "Hub Bajío"
         ),
         Airport(
             code = "BJX",
@@ -266,10 +292,7 @@ object AirportData {
             stateOrCountry = "Guanajuato",
             latitude = 20.9935,
             longitude = -101.4810,
-            domesticTuaMxn = 532,
-            internationalTuaMxn = 1010,
-            isMexican = true,
-            isBeach = false
+            domesticTuaMxn = 532
         ),
         Airport(
             code = "QRO",
@@ -279,188 +302,161 @@ object AirportData {
             latitude = 20.6173,
             longitude = -100.1860,
             domesticTuaMxn = 425,
-            internationalTuaMxn = 890,
-            isMexican = true,
-            isBeach = false,
-            highlightTag = "TUA Baja Centro"
+            highlightTag = "Hub TAR · TUA Baja"
         ),
         Airport(
-            code = "ZIH",
-            name = "Aeropuerto Internacional de Ixtapa-Zihuatanejo",
-            city = "Zihuatanejo",
-            stateOrCountry = "Guerrero",
-            latitude = 17.6016,
-            longitude = -101.4610,
-            domesticTuaMxn = 518,
-            internationalTuaMxn = 980,
-            isMexican = true,
-            isBeach = true
-        ),
-
-        // Destinos Internacionales
-        Airport(
-            code = "LAX",
-            name = "Los Angeles International Airport",
-            city = "Los Ángeles",
-            stateOrCountry = "Estados Unidos",
-            latitude = 33.9416,
-            longitude = -118.4085,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 780,
-            isMexican = false,
-            isBeach = false
+            code = "MID",
+            name = "Aeropuerto Internacional Manuel Crescencio Rejón",
+            city = "Mérida",
+            stateOrCountry = "Yucatán",
+            latitude = 20.9370,
+            longitude = -89.6577,
+            domesticTuaMxn = 610
         ),
         Airport(
-            code = "ORD",
-            name = "O'Hare International Airport",
-            city = "Chicago",
-            stateOrCountry = "Estados Unidos",
-            latitude = 41.9742,
-            longitude = -87.9073,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 790,
-            isMexican = false,
-            isBeach = false
+            code = "OAX",
+            name = "Aeropuerto Internacional Xoxocotlán",
+            city = "Oaxaca",
+            stateOrCountry = "Oaxaca",
+            latitude = 16.9999,
+            longitude = -96.7266,
+            domesticTuaMxn = 580
         ),
         Airport(
-            code = "MIA",
-            name = "Miami International Airport",
-            city = "Miami",
-            stateOrCountry = "Estados Unidos",
-            latitude = 25.7959,
-            longitude = -80.2870,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 770,
-            isMexican = false,
-            isBeach = true
+            code = "TGZ",
+            name = "Aeropuerto Internacional Ángel Albino Corzo",
+            city = "Tuxtla Gutiérrez",
+            stateOrCountry = "Chiapas",
+            latitude = 16.5618,
+            longitude = -93.0261,
+            domesticTuaMxn = 548
         ),
         Airport(
-            code = "IAH",
-            name = "George Bush Intercontinental",
-            city = "Houston",
-            stateOrCountry = "Estados Unidos",
-            latitude = 29.9902,
-            longitude = -95.3368,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 740,
-            isMexican = false,
-            isBeach = false
+            code = "PBC",
+            name = "Aeropuerto Internacional Hermanos Serdán",
+            city = "Puebla",
+            stateOrCountry = "Puebla",
+            latitude = 19.1581,
+            longitude = -98.3714,
+            domesticTuaMxn = 460
         ),
         Airport(
-            code = "JFK",
-            name = "John F. Kennedy International",
-            city = "Nueva York",
-            stateOrCountry = "Estados Unidos",
-            latitude = 40.6413,
-            longitude = -73.7781,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 820,
-            isMexican = false,
-            isBeach = false
+            code = "MLM",
+            name = "Aeropuerto Internacional General Francisco Mujica",
+            city = "Morelia",
+            stateOrCountry = "Michoacán",
+            latitude = 19.8499,
+            longitude = -101.0255,
+            domesticTuaMxn = 540
         ),
         Airport(
-            code = "LAS",
-            name = "Harry Reid International Airport",
-            city = "Las Vegas",
-            stateOrCountry = "Estados Unidos",
-            latitude = 36.0840,
-            longitude = -115.1537,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 750,
-            isMexican = false,
-            isBeach = false
+            code = "SLP",
+            name = "Aeropuerto Internacional Ponciano Arriaga",
+            city = "San Luis Potosí",
+            stateOrCountry = "San Luis Potosí",
+            latitude = 22.2543,
+            longitude = -100.9308,
+            domesticTuaMxn = 595
         ),
         Airport(
-            code = "MCO",
-            name = "Orlando International Airport",
-            city = "Orlando",
-            stateOrCountry = "Estados Unidos",
-            latitude = 28.4312,
-            longitude = -81.3081,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 760,
-            isMexican = false,
-            isBeach = false
+            code = "HMO",
+            name = "Aeropuerto Internacional General Ignacio Pesqueira",
+            city = "Hermosillo",
+            stateOrCountry = "Sonora",
+            latitude = 29.0959,
+            longitude = -111.0479,
+            domesticTuaMxn = 560
         ),
         Airport(
-            code = "DFW",
-            name = "Dallas/Fort Worth International",
-            city = "Dallas",
-            stateOrCountry = "Estados Unidos",
-            latitude = 32.8998,
-            longitude = -97.0403,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 740,
-            isMexican = false,
-            isBeach = false
+            code = "CUL",
+            name = "Aeropuerto Internacional Federal de Culiacán",
+            city = "Culiacán",
+            stateOrCountry = "Sinaloa",
+            latitude = 24.7645,
+            longitude = -107.4747,
+            domesticTuaMxn = 645
         ),
         Airport(
-            code = "SFO",
-            name = "San Francisco International",
-            city = "San Francisco",
-            stateOrCountry = "Estados Unidos",
-            latitude = 37.6213,
-            longitude = -122.3790,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 790,
-            isMexican = false,
-            isBeach = false
+            code = "CUU",
+            name = "Aeropuerto Internacional General Roberto Fierro",
+            city = "Chihuahua",
+            stateOrCountry = "Chihuahua",
+            latitude = 28.7029,
+            longitude = -105.9646,
+            domesticTuaMxn = 630
         ),
         Airport(
-            code = "BOG",
-            name = "Aeropuerto Internacional El Dorado",
-            city = "Bogotá",
-            stateOrCountry = "Colombia",
-            latitude = 4.7016,
-            longitude = -74.1469,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 690,
-            isMexican = false,
-            isBeach = false
+            code = "CJS",
+            name = "Aeropuerto Internacional Abraham González",
+            city = "Ciudad Juárez",
+            stateOrCountry = "Chihuahua",
+            latitude = 31.6361,
+            longitude = -106.4287,
+            domesticTuaMxn = 625
         ),
         Airport(
-            code = "MAD",
-            name = "Adolfo Suárez Madrid-Barajas",
-            city = "Madrid",
-            stateOrCountry = "España",
-            latitude = 40.4983,
-            longitude = -3.5676,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 880,
-            isMexican = false,
-            isBeach = false
+            code = "VSA",
+            name = "Aeropuerto Internacional Carlos Rovirosa Pérez",
+            city = "Villahermosa",
+            stateOrCountry = "Tabasco",
+            latitude = 17.9970,
+            longitude = -92.8174,
+            domesticTuaMxn = 580
         ),
         Airport(
-            code = "GUA",
-            name = "Aeropuerto Internacional La Aurora",
-            city = "Ciudad de Guatemala",
-            stateOrCountry = "Guatemala",
-            latitude = 14.5833,
-            longitude = -90.5275,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 610,
-            isMexican = false,
-            isBeach = false
+            code = "TAM",
+            name = "Aeropuerto Internacional General Francisco Javier Mina",
+            city = "Tampico",
+            stateOrCountry = "Tamaulipas",
+            latitude = 22.2964,
+            longitude = -97.8659,
+            domesticTuaMxn = 610
         ),
         Airport(
-            code = "SJO",
-            name = "Aeropuerto Internacional Juan Santamaría",
-            city = "San José",
-            stateOrCountry = "Costa Rica",
-            latitude = 9.9939,
-            longitude = -84.2088,
-            domesticTuaMxn = 0,
-            internationalTuaMxn = 630,
-            isMexican = false,
-            isBeach = false
+            code = "TRC",
+            name = "Aeropuerto Internacional Francisco Sarabia",
+            city = "Torreón",
+            stateOrCountry = "Coahuila",
+            latitude = 25.5683,
+            longitude = -103.4106,
+            domesticTuaMxn = 635
+        ),
+        Airport(
+            code = "LMM",
+            name = "Aeropuerto Internacional Federal del Valle del Fuerte",
+            city = "Los Mochis",
+            stateOrCountry = "Sinaloa",
+            latitude = 25.6852,
+            longitude = -109.0808,
+            domesticTuaMxn = 570
+        ),
+        Airport(
+            code = "DGO",
+            name = "Aeropuerto Internacional Guadalupe Victoria",
+            city = "Durango",
+            stateOrCountry = "Durango",
+            latitude = 24.1242,
+            longitude = -104.5280,
+            domesticTuaMxn = 595
+        ),
+        Airport(
+            code = "ZCL",
+            name = "Aeropuerto Internacional General Leobardo C. Ruiz",
+            city = "Zacatecas",
+            stateOrCountry = "Zacatecas",
+            latitude = 22.8971,
+            longitude = -102.6869,
+            domesticTuaMxn = 615
         )
     )
 
     private val byCode: Map<String, Airport> = airports.associateBy { it.code }
 
-    val mexicanAirports: List<Airport> = airports.filter { it.isMexican }
+    val mexicanAirports: List<Airport> = airports
 
     fun findByCode(code: String): Airport? = byCode[code.uppercase()]
+
+    fun isDomesticMexicanAirport(code: String): Boolean = byCode.containsKey(code.uppercase())
 
     fun nearestMexicanAirport(latitude: Double, longitude: Double): Airport {
         return mexicanAirports.minByOrNull { it.distanceKmTo(latitude, longitude) }

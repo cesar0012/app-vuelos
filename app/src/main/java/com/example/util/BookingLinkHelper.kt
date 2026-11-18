@@ -6,6 +6,7 @@ import android.net.Uri
 import com.example.data.AirTrfxCitySlugs
 import com.example.model.Airline
 import com.example.model.FlightDeal
+import com.example.model.PriceDisplayOptions
 import java.net.URLEncoder
 
 data class PendingRedirectRequest(
@@ -16,11 +17,13 @@ data class PendingRedirectRequest(
     val promoIsoDate: String,
     val returnDateLabel: String? = null,
     val returnIsoDate: String? = null,
-    val baseFareMxn: Int? = null
+    val baseFareMxn: Int? = null,
+    val effectivePriceMxn: Int? = null,
+    val priceModeSummary: String? = null
 )
 
 /**
- * Generates verified HTTP-200 official airline URLs and secondary comparison links
+ * Generates verified HTTP-200 official Mexican airline URLs and secondary comparison links
  * (Kayak Mexico & Google Flights).
  */
 object BookingLinkHelper {
@@ -29,7 +32,8 @@ object BookingLinkHelper {
         deal: FlightDeal,
         url: String,
         returnDeal: FlightDeal? = null,
-        extraUrl: String? = null
+        extraUrl: String? = null,
+        priceOptions: PriceDisplayOptions = PriceDisplayOptions()
     ): PendingRedirectRequest {
         val urls = listOfNotNull(url, extraUrl)
         val routeText = if (returnDeal != null) {
@@ -37,6 +41,8 @@ object BookingLinkHelper {
         } else {
             "${deal.originCode} -> ${deal.destinationCode}"
         }
+        val effectiveTotal = deal.effectivePriceMxn(priceOptions) +
+            (returnDeal?.effectivePriceMxn(priceOptions) ?: 0)
         return PendingRedirectRequest(
             urls = urls,
             airlineName = if (returnDeal != null && returnDeal.airline != deal.airline) {
@@ -49,16 +55,18 @@ object BookingLinkHelper {
             promoIsoDate = deal.departureDate.isoString,
             returnDateLabel = returnDeal?.departureDate?.fullDayLabelEs,
             returnIsoDate = returnDeal?.departureDate?.isoString,
-            baseFareMxn = deal.baseFareMxn + (returnDeal?.baseFareMxn ?: 0)
+            baseFareMxn = deal.baseFareMxn + (returnDeal?.baseFareMxn ?: 0),
+            effectivePriceMxn = effectiveTotal,
+            priceModeSummary = priceOptions.shortSummaryLabel
         )
     }
 
     /**
-     * Direct official airline URL.
+     * Direct official airline URL for all 7 active Mexican domestic airlines.
      * - Volaris: verified route page (vuelos-desde-{origin}-a-{dest}) showing exact base-fare
      *   calendar + flight search widget, or volaris.com/es-mx/ fallback.
      * - Viva Aerobus: vivaaerobus.com/es-mx (normal booking homepage to avoid 404 on connecting routes).
-     * - Aeroméxico / Mexicana: verified HTTP 200 official search/offers pages.
+     * - Aeroméxico, Mexicana, TAR, Aerus, Magnicharters: verified official booking homepages.
      */
     fun officialAirlineBookingUrl(
         airline: Airline,
@@ -75,6 +83,9 @@ object BookingLinkHelper {
             Airline.VIVA_AEROBUS -> airline.officialPromoUrl
             Airline.AEROMEXICO -> airline.officialPromoUrl
             Airline.MEXICANA -> airline.officialPromoUrl
+            Airline.TAR -> airline.officialPromoUrl
+            Airline.AERUS -> airline.officialPromoUrl
+            Airline.MAGNICHARTERS -> airline.officialPromoUrl
         }
     }
 
@@ -94,6 +105,9 @@ object BookingLinkHelper {
             Airline.VIVA_AEROBUS -> "Viva Aerobus"
             Airline.VOLARIS -> "Volaris"
             Airline.MEXICANA -> "Mexicana"
+            Airline.TAR -> "TAR Aerolineas"
+            Airline.AERUS -> "Aerus"
+            Airline.MAGNICHARTERS -> "Magnicharters"
         }
         val encodedAirline = URLEncoder.encode(airlineQuery, "UTF-8")
         return "https://www.google.com/travel/flights?q=$encodedAirline+one+way+flights+from+$o+to+$d+on+$departureDateIso&curr=MXN&hl=es-MX"

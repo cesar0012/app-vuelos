@@ -1,9 +1,30 @@
 package com.example.model
 
 enum class BaggagePackage(val label: String, val description: String) {
-    ZERO("Zero", "Solo artículo personal bajo asiento"),
-    BASICA_10KG("Básica 10kg", "Artículo personal + carry-on 10 kg"),
-    PLUS_25KG("Plus 25kg", "Carry-on 10 kg + maleta documentada 25 kg")
+    ZERO("Zero (Sin equipaje)", "Solo artículo personal bajo asiento"),
+    BASICA_10KG("Básica / Light (10 kg)", "Artículo personal + maleta de mano carry-on 10 kg"),
+    PLUS_25KG("Plus (25 kg)", "Carry-on 10 kg + maleta documentada 25 kg")
+}
+
+enum class PricingBaggageTier(
+    val chipLabel: String,
+    val badgeLabel: String,
+    val baggagePackage: BaggagePackage
+) {
+    ZERO("Zero (Sin equipaje)", "Zero (sin equipaje)", BaggagePackage.ZERO),
+    BASICA_10KG("Básica (10kg)", "Básica (carry-on 10kg)", BaggagePackage.BASICA_10KG),
+    PLUS_25KG("Plus (25kg)", "Plus (25kg doc.)", BaggagePackage.PLUS_25KG)
+}
+
+data class PriceDisplayOptions(
+    val includeTua: Boolean = true,
+    val baggageTier: PricingBaggageTier = PricingBaggageTier.BASICA_10KG
+) {
+    val shortSummaryLabel: String
+        get() {
+            val tuaText = if (includeTua) "Con TUA" else "Sin TUA"
+            return "$tuaText · ${baggageTier.chipLabel}"
+        }
 }
 
 enum class SeatOption(val label: String, val description: String) {
@@ -71,12 +92,8 @@ object FareCalculator {
         val mexAirport = AirportData.findByCode("MEX")
         val nluAirport = AirportData.findByCode("NLU")
         val aifaSavings = if (mexAirport != null && nluAirport != null) {
-            if (outbound.isInternational) {
-                mexAirport.internationalTuaMxn - nluAirport.internationalTuaMxn
-            } else {
-                mexAirport.domesticTuaMxn - nluAirport.domesticTuaMxn
-            }
-        } else 261
+            mexAirport.domesticTuaMxn - nluAirport.domesticTuaMxn
+        } else 344
 
         val originAirport = AirportData.findByCode(outbound.originCode)
         val tuaInsightNote = when {
@@ -86,10 +103,8 @@ object FareCalculator {
                 "Tip TUA: El mismo vuelo saliendo desde AIFA (NLU) ahorra $$aifaSavings MXN en TUA por pasajero."
             outbound.originCode == "TQO" ->
                 "Tulum (TQO) ofrece una de las TUA más bajas del Caribe mexicano ($${outbound.originTuaMxn} MXN)."
-            originAirport != null && !originAirport.isMexican ->
-                "Vuelo internacional originando en ${originAirport.city} (${originAirport.code}) con tasas aeroportuarias incluidas."
             else ->
-                "TUA oficial de ${originAirport?.city ?: outbound.originCode}: $${outbound.originTuaMxn} MXN por pasajero ($segments tramo${if (segments > 1) "s" else ""}). Bebés en brazos exentos de TUA."
+                "TUA nacional de ${originAirport?.city ?: outbound.originCode}: $${outbound.originTuaMxn} MXN por pasajero ($segments tramo${if (segments > 1) "s" else ""}). Bebés en brazos exentos de TUA."
         }
 
         return FareBreakdownResult(

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.model.AirportData
 import com.example.model.FlightDeal
+import com.example.model.PriceDisplayOptions
 import com.example.ui.theme.AppTheme
 import com.example.util.BookingLinkHelper
 import com.example.util.PendingRedirectRequest
@@ -62,6 +63,7 @@ import com.example.util.PendingRedirectRequest
 @Composable
 fun PromoLocatorDialog(
     deal: FlightDeal,
+    priceOptions: PriceDisplayOptions = PriceDisplayOptions(),
     onRequestExternalRedirect: (PendingRedirectRequest) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -187,9 +189,14 @@ fun PromoLocatorDialog(
                             color = colors.textSecondary
                         )
                         Text(
-                            text = "Base $${deal.baseFareMxn} MXN + TUA $${deal.originTuaMxn} MXN = Total $${deal.totalWithTuaMxn} MXN",
+                            text = "Calculado (${priceOptions.shortSummaryLabel}): $${deal.effectivePriceMxn(priceOptions)} MXN",
                             style = MaterialTheme.typography.labelLarge,
                             color = colors.neonGreen
+                        )
+                        Text(
+                            text = deal.fareBreakdownSummary(priceOptions),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.textSecondary
                         )
                     }
                 }
@@ -200,7 +207,7 @@ fun PromoLocatorDialog(
                 Button(
                     onClick = {
                         onRequestExternalRedirect(
-                            BookingLinkHelper.createRedirectRequest(deal, officialDirectUrl)
+                            BookingLinkHelper.createRedirectRequest(deal, officialDirectUrl, priceOptions = priceOptions)
                         )
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -266,8 +273,13 @@ fun PromoLocatorDialog(
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textPrimary
                         )
+                        val bagHint = if (deal.airline.includesCarryOnInBase) {
+                            "${deal.airline.displayName} ya incluye equipaje de mano 10kg en su tarifa base ($${deal.baseFareMxn} MXN + $${deal.originTuaMxn} TUA)."
+                        } else {
+                            "Tarifa ${deal.airline.zeroTierLabel} base: $${deal.baseFareMxn} MXN (sin maleta de mano) + $${deal.originTuaMxn} TUA = $${deal.totalWithTuaMxn} MXN. Si eliges ${deal.airline.basicTierLabel} (+~$${deal.airline.carryOn10kgMxn} MXN) queda cerca de $${deal.totalWithTuaMxn + deal.airline.carryOn10kgMxn} MXN."
+                        }
                         Text(
-                            text = "3. La tarifa base publicada es $${deal.baseFareMxn} MXN (+ $${deal.originTuaMxn} TUA en el resumen de pago).",
+                            text = "3. $bagHint",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary
                         )

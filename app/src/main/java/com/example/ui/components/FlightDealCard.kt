@@ -45,11 +45,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.model.AirportData
 import com.example.model.FlightDeal
+import com.example.model.PriceDisplayOptions
 import com.example.ui.theme.AppTheme
 
 @Composable
 fun FlightDealCard(
     deal: FlightDeal,
+    priceOptions: PriceDisplayOptions = PriceDisplayOptions(),
     isHeadToHeadCompetition: Boolean = false,
     isSelectedInPlan: Boolean = false,
     selectButtonLabel: String? = null,
@@ -62,6 +64,9 @@ fun FlightDealCard(
     val colors = AppTheme.colors
     val originCity = AirportData.findByCode(deal.originCode)?.city ?: deal.originCode
     val destCity = AirportData.findByCode(deal.destinationCode)?.city ?: deal.destinationCode
+    val effectivePrice = deal.effectivePriceMxn(priceOptions)
+    val formulaSummary = deal.fareBreakdownSummary(priceOptions)
+    val cheapThreshold = if (priceOptions.includeTua) 1150 else 500
     val borderColor = when {
         isSelectedInPlan -> colors.neonCyan
         isHeadToHeadCompetition -> colors.neonGold.copy(alpha = 0.7f)
@@ -78,7 +83,7 @@ fun FlightDealCard(
             .testTag("flight_deal_card_${deal.id}")
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Top badge row: Airline + flight number + competition/seats
+            // Top badge row: Airline + flight number + live/referential status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -104,6 +109,8 @@ fun FlightDealCard(
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
@@ -125,7 +132,7 @@ fun FlightDealCard(
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
-                                    text = "Competencia",
+                                    text = "Comp.",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = colors.neonGold
                                 )
@@ -160,17 +167,24 @@ fun FlightDealCard(
                         }
                     }
                 } else {
-                    Text(
-                        text = "${deal.seatsRemaining} lugares",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (deal.seatsRemaining <= 3) colors.neonPink else colors.textSecondary
-                    )
+                    Surface(
+                        color = colors.cardHighest,
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, colors.cardBorder)
+                    ) {
+                        Text(
+                            text = "Referencial",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Route + Times + Price Breakdown
+            // Route + Times + Transparent Price Breakdown
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -215,34 +229,38 @@ fun FlightDealCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "$${deal.baseFareMxn} MXN",
+                        text = "$$effectivePrice MXN",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = if (deal.baseFareMxn <= 299) colors.neonGreen else colors.neonCyan
-                    )
-                    Text(
-                        text = "+ $${deal.originTuaMxn} TUA (${deal.originCode})",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.textSecondary
+                        color = if (effectivePrice <= cheapThreshold) colors.neonGreen else colors.neonCyan,
+                        fontWeight = FontWeight.Bold
                     )
                     Surface(
                         color = colors.cardHighest,
                         shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.padding(top = 3.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     ) {
                         Text(
-                            text = "Total $${deal.totalWithTuaMxn} MXN",
-                            style = MaterialTheme.typography.labelMedium,
+                            text = priceOptions.shortSummaryLabel,
+                            style = MaterialTheme.typography.labelSmall,
                             color = colors.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
+                    Text(
+                        text = formulaSummary,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Metadata pills: Non-stop / Layover + Aircraft + Date
+            // Metadata pills: Non-stop / Layover + Aircraft
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),

@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Luggage
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -67,6 +69,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.model.Airport
 import com.example.model.AirportCategory
 import com.example.model.AirportData
+import com.example.model.PriceDisplayOptions
+import com.example.model.PricingBaggageTier
 import com.example.ui.theme.AppTheme
 import com.example.viewmodel.AirportDialogMode
 
@@ -76,7 +80,10 @@ fun CheapTravelTopHeader(
     selectedDestinations: List<String>,
     gpsBanner: String?,
     isDarkMode: Boolean = false,
+    priceOptions: PriceDisplayOptions = PriceDisplayOptions(),
     onToggleTheme: () -> Unit = {},
+    onToggleIncludeTua: () -> Unit = {},
+    onSelectBaggageTier: (PricingBaggageTier) -> Unit = {},
     onOpenOriginsDialog: () -> Unit,
     onOpenDestinationsDialog: () -> Unit,
     onRemoveOrigin: (String) -> Unit,
@@ -133,7 +140,7 @@ fun CheapTravelTopHeader(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Radar de Vuelos MX + TUA Real",
+                            text = "Vuelos Nacionales MX · TUA y Equipaje Real",
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.neonCyan,
                             maxLines = 1,
@@ -200,7 +207,7 @@ fun CheapTravelTopHeader(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (selectedOrigins.isEmpty()) "Origen: Todos" else "Orígenes (${selectedOrigins.size})",
+                        text = if (selectedOrigins.isEmpty()) "Origen: Todos MX" else "Orígenes (${selectedOrigins.size})",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1
@@ -227,7 +234,7 @@ fun CheapTravelTopHeader(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (selectedDestinations.isEmpty()) "Destino: Todos" else "Destinos (${selectedDestinations.size})",
+                        text = if (selectedDestinations.isEmpty()) "Destino: Todos MX" else "Destinos (${selectedDestinations.size})",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1
@@ -265,9 +272,9 @@ fun CheapTravelTopHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Always-visible removable active chips row
+            // Always-visible removable active airport chips row
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -303,7 +310,7 @@ fun CheapTravelTopHeader(
                 if (selectedDestinations.isEmpty()) {
                     item(key = "any_dest") {
                         RemovableSummaryChip(
-                            label = "Destino: Cualquiera",
+                            label = "Destino: Todo México",
                             accentColor = colors.neonPink,
                             showClose = false,
                             onClick = onOpenDestinationsDialog,
@@ -323,6 +330,90 @@ fun CheapTravelTopHeader(
                             testTag = "chip_remove_dest_$code"
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Global Pricing Calculation Filter Bar: Con/Sin TUA + Baggage Tier (Básica 10kg default)
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("global_pricing_filters_row")
+            ) {
+                item(key = "tua_toggle") {
+                    FilterChip(
+                        selected = priceOptions.includeTua,
+                        onClick = onToggleIncludeTua,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (priceOptions.includeTua) Icons.Default.Check else Icons.Outlined.ReceiptLong,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = if (priceOptions.includeTua) "Con TUA" else "Sin TUA",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = colors.greenTint,
+                            selectedLabelColor = colors.neonGreen,
+                            selectedLeadingIconColor = colors.neonGreen,
+                            containerColor = colors.cardElevated,
+                            labelColor = colors.textSecondary,
+                            iconColor = colors.textSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = priceOptions.includeTua,
+                            selectedBorderColor = colors.neonGreen,
+                            borderColor = colors.cardBorder
+                        ),
+                        modifier = Modifier.testTag("price_filter_tua_toggle")
+                    )
+                }
+
+                items(PricingBaggageTier.entries, key = { it.name }) { tier ->
+                    val selected = priceOptions.baggageTier == tier
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onSelectBaggageTier(tier) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Luggage,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = tier.chipLabel,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = colors.cyanTint,
+                            selectedLabelColor = colors.neonCyan,
+                            selectedLeadingIconColor = colors.neonCyan,
+                            containerColor = colors.cardElevated,
+                            labelColor = colors.textSecondary,
+                            iconColor = colors.textSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selected,
+                            selectedBorderColor = colors.neonCyan,
+                            borderColor = colors.cardBorder
+                        ),
+                        modifier = Modifier.testTag("price_filter_tier_${tier.name.lowercase()}")
+                    )
                 }
             }
         }
@@ -399,16 +490,16 @@ fun AirportSelectorDialog(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember {
-        mutableStateOf(if (mode == AirportDialogMode.ORIGINS) AirportCategory.MEXICO else AirportCategory.ALL)
+        mutableStateOf(if (mode == AirportDialogMode.DESTINATIONS) AirportCategory.BEACH else AirportCategory.ALL)
     }
 
-    val filteredAirports = remember(searchQuery, selectedCategory, mode) {
+    val filteredAirports = remember(searchQuery, selectedCategory) {
         AirportData.airports.filter { airport ->
             val matchesCategory = when (selectedCategory) {
                 AirportCategory.ALL -> true
-                AirportCategory.MEXICO -> airport.isMexican
                 AirportCategory.BEACH -> airport.isBeach
-                AirportCategory.INTERNATIONAL -> !airport.isMexican
+                AirportCategory.HUBS -> airport.isMajorHub
+                AirportCategory.REGIONAL -> !airport.isMajorHub && !airport.isBeach
             }
             val q = searchQuery.trim().lowercase()
             val matchesSearch = q.isEmpty() ||
@@ -441,19 +532,15 @@ fun AirportSelectorDialog(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (mode == AirportDialogMode.ORIGINS) {
-                                "Aeropuertos de Salida"
+                                "Aeropuertos de Salida (México)"
                             } else {
-                                "Aeropuertos de Destino"
+                                "Destinos en México"
                             },
                             style = MaterialTheme.typography.titleLarge,
                             color = colors.textPrimary
                         )
                         Text(
-                            text = if (mode == AirportDialogMode.ORIGINS) {
-                                "Selecciona uno o varios orígenes en México o EE.UU."
-                            } else {
-                                "Elige destinos específicos o deja vacío para Cualquier destino"
-                            },
+                            text = "Vuelos 100% nacionales · ${AirportData.airports.size} aeropuertos de México",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary
                         )
@@ -512,7 +599,7 @@ fun AirportSelectorDialog(
                             .testTag("dialog_clear_destinations_button")
                     ) {
                         Text(
-                            text = "Cambiar a Cualquier destino",
+                            text = "Ver todos los destinos de México",
                             color = colors.neonPink
                         )
                     }
@@ -522,7 +609,7 @@ fun AirportSelectorDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Buscar por ciudad o código IATA (ej. AGU, NLU, CUN)") },
+                    placeholder = { Text("Buscar ciudad o IATA (ej. AGU, NLU, CUN, QRO)") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -679,20 +766,12 @@ private fun AirportOptionRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (airport.isMexican) {
-                        val tuaColor = if (airport.domesticTuaMxn <= 400) colors.neonGreen else colors.textMuted
-                        Text(
-                            text = "TUA Nac: $${airport.domesticTuaMxn} MXN",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = tuaColor
-                        )
-                    } else {
-                        Text(
-                            text = "Tasa Intl: $${airport.internationalTuaMxn} MXN",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.textMuted
-                        )
-                    }
+                    val tuaColor = if (airport.domesticTuaMxn <= 450) colors.neonGreen else colors.textMuted
+                    Text(
+                        text = "TUA MX: $${airport.domesticTuaMxn} MXN",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = tuaColor
+                    )
                     if (!airport.highlightTag.isNullOrBlank()) {
                         Text(
                             text = airport.highlightTag,

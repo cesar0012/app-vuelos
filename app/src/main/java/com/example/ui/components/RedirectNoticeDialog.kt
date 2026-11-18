@@ -224,9 +224,17 @@ fun RedirectNoticeDialog(
                             }
                         }
 
+                        if (request.effectivePriceMxn != null && request.priceModeSummary != null) {
+                            Text(
+                                text = "Precio calculado (${request.priceModeSummary}): $${request.effectivePriceMxn} MXN",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         if (request.baseFareMxn != null) {
                             Text(
-                                text = "Tarifa base detectada: $${request.baseFareMxn} MXN (+ TUA al pagar)",
+                                text = "Tarifa base sin TUA: $${request.baseFareMxn} MXN (aerolínea suma TUA y equipaje al elegir tarifa)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colors.textSecondary
                             )

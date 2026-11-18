@@ -28,14 +28,15 @@ private data class RouteTemplate(
     val minBaseFareMxn: Int,
     val typicalBaseFareMxn: Int,
     val promoSource: String,
-    val operatingStride: Int = 1 // 1 = diario, 2 = cada 2 dias, etc.
+    val operatingStride: Int = 1 // 1 = diario, 2 = cada 2 días, etc.
 )
 
 class FlightDealsRepository(
     private val baseDate: TravelDate = TravelDate.today()
 ) {
+    // Catálogo 100% vuelos nacionales dentro de México (7 aerolíneas mexicanas activas)
     private val templates: List<RouteTemplate> = listOf(
-        // AGU <-> PVR (Ruta clave: Volaris directo 58m $199, Viva 1 escala MTY, Aeromexico 1 escala MEX)
+        // ==================== AGU (Aguascalientes) ====================
         RouteTemplate(
             airline = Airline.VOLARIS,
             outFlightNum = "Y4 3180",
@@ -50,8 +51,8 @@ class FlightDealsRepository(
             aircraft = "Airbus A320neo",
             isNonStop = true,
             minBaseFareMxn = 199,
-            typicalBaseFareMxn = 449,
-            promoSource = "Tarifa Zero Volaris · Flash Bajío-Pacífico"
+            typicalBaseFareMxn = 469,
+            promoSource = "Referencial · Tarifa Zero Volaris Bajío-Pacífico"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -66,9 +67,9 @@ class FlightDealsRepository(
             durationMin = 58,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 249,
-            typicalBaseFareMxn = 529,
-            promoSource = "Tarifa Zero Volaris · Salida Nocturna",
+            minBaseFareMxn = 259,
+            typicalBaseFareMxn = 549,
+            promoSource = "Referencial · Tarifa Zero Volaris Nocturno",
             operatingStride = 2
         ),
         RouteTemplate(
@@ -87,9 +88,9 @@ class FlightDealsRepository(
             stopsCount = 1,
             layoverCode = "MTY",
             layoverMin = 85,
-            minBaseFareMxn = 279,
-            typicalBaseFareMxn = 569,
-            promoSource = "Tarifa Zero Viva · Conexión MTY"
+            minBaseFareMxn = 289,
+            typicalBaseFareMxn = 599,
+            promoSource = "Referencial · Tarifa Zero Viva Conexión MTY"
         ),
         RouteTemplate(
             airline = Airline.AEROMEXICO,
@@ -107,13 +108,11 @@ class FlightDealsRepository(
             stopsCount = 1,
             layoverCode = "MEX",
             layoverMin = 95,
-            minBaseFareMxn = 649,
-            typicalBaseFareMxn = 1090,
-            promoSource = "Básica Aeroméxico · Conexión AICM",
+            minBaseFareMxn = 699,
+            typicalBaseFareMxn = 1190,
+            promoSource = "Referencial · Básica Aeroméxico (inc. 10kg)",
             operatingStride = 2
         ),
-
-        // AGU <-> CUN, TIJ, MEX, LAX, ORD
         RouteTemplate(
             airline = Airline.VOLARIS,
             outFlightNum = "Y4 3210",
@@ -128,8 +127,8 @@ class FlightDealsRepository(
             aircraft = "Airbus A321neo",
             isNonStop = true,
             minBaseFareMxn = 249,
-            typicalBaseFareMxn = 629,
-            promoSource = "Tarifa Zero Volaris · Promo Caribe"
+            typicalBaseFareMxn = 649,
+            promoSource = "Referencial · Tarifa Zero Volaris Caribe"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -147,9 +146,9 @@ class FlightDealsRepository(
             stopsCount = 1,
             layoverCode = "MTY",
             layoverMin = 70,
-            minBaseFareMxn = 289,
-            typicalBaseFareMxn = 679,
-            promoSource = "Tarifa Zero Viva · Escala MTY"
+            minBaseFareMxn = 299,
+            typicalBaseFareMxn = 699,
+            promoSource = "Referencial · Tarifa Zero Viva Escala MTY"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -166,7 +165,7 @@ class FlightDealsRepository(
             isNonStop = true,
             minBaseFareMxn = 299,
             typicalBaseFareMxn = 749,
-            promoSource = "Tarifa Zero Volaris · Frontera CBX"
+            promoSource = "Referencial · Tarifa Zero Volaris Tijuana"
         ),
         RouteTemplate(
             airline = Airline.AEROMEXICO,
@@ -181,30 +180,30 @@ class FlightDealsRepository(
             durationMin = 75,
             aircraft = "Embraer 190",
             isNonStop = true,
-            minBaseFareMxn = 499,
-            typicalBaseFareMxn = 890,
-            promoSource = "Básica Aeroméxico · Puente Bajío"
+            minBaseFareMxn = 529,
+            typicalBaseFareMxn = 949,
+            promoSource = "Referencial · Básica Aeroméxico Puente Bajío"
         ),
         RouteTemplate(
-            airline = Airline.VOLARIS,
-            outFlightNum = "Y4 1820",
-            retFlightNum = "Y4 1821",
+            airline = Airline.TAR,
+            outFlightNum = "YQ 412",
+            retFlightNum = "YQ 413",
             originCode = "AGU",
-            destCode = "LAX",
-            outDepTime = "11:00",
-            outArrTime = "12:45",
-            retDepTime = "14:00",
-            retArrTime = "19:20",
-            durationMin = 225,
-            aircraft = "Airbus A320neo",
+            destCode = "MTY",
+            outDepTime = "09:10",
+            outArrTime = "10:25",
+            retDepTime = "16:40",
+            retArrTime = "17:55",
+            durationMin = 75,
+            aircraft = "Embraer ERJ-145",
             isNonStop = true,
-            minBaseFareMxn = 1190,
-            typicalBaseFareMxn = 2190,
-            promoSource = "Volaris Internacional · Tarifa Zero USA",
+            minBaseFareMxn = 549,
+            typicalBaseFareMxn = 929,
+            promoSource = "Referencial · TAR Aerolíneas Regional (inc. 10kg)",
             operatingStride = 2
         ),
 
-        // NLU (AIFA) — Rutas TUA Ultra Baja ($309 MXN)
+        // ==================== NLU (AIFA — TUA más baja de CDMX $309 MXN) ====================
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
             outFlightNum = "VB 9210",
@@ -218,9 +217,9 @@ class FlightDealsRepository(
             durationMin = 135,
             aircraft = "Airbus A321neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 489,
-            promoSource = "Tarifa Zero Viva · Especial AIFA $309 TUA"
+            minBaseFareMxn = 219,
+            typicalBaseFareMxn = 519,
+            promoSource = "Referencial · Tarifa Zero Viva AIFA"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -236,8 +235,8 @@ class FlightDealsRepository(
             aircraft = "Airbus A320neo",
             isNonStop = true,
             minBaseFareMxn = 199,
-            typicalBaseFareMxn = 519,
-            promoSource = "Tarifa Zero Volaris · Salida AIFA"
+            typicalBaseFareMxn = 529,
+            promoSource = "Referencial · Tarifa Zero Volaris AIFA"
         ),
         RouteTemplate(
             airline = Airline.MEXICANA,
@@ -252,9 +251,9 @@ class FlightDealsRepository(
             durationMin = 130,
             aircraft = "Boeing 737-800",
             isNonStop = true,
-            minBaseFareMxn = 279,
-            typicalBaseFareMxn = 599,
-            promoSource = "Mexicana · Incluye Carry-on 10kg desde AIFA"
+            minBaseFareMxn = 289,
+            typicalBaseFareMxn = 619,
+            promoSource = "Referencial · Mexicana (inc. 10kg) AIFA-Tulum"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -269,9 +268,9 @@ class FlightDealsRepository(
             durationMin = 135,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 219,
-            typicalBaseFareMxn = 549,
-            promoSource = "Tarifa Zero Viva · Caribe Sur Tulum"
+            minBaseFareMxn = 239,
+            typicalBaseFareMxn = 569,
+            promoSource = "Referencial · Tarifa Zero Viva Caribe Sur"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -286,9 +285,9 @@ class FlightDealsRepository(
             durationMin = 95,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 469,
-            promoSource = "Tarifa Zero Viva · AIFA Pacífico"
+            minBaseFareMxn = 209,
+            typicalBaseFareMxn = 489,
+            promoSource = "Referencial · Tarifa Zero Viva Pacífico"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -305,7 +304,7 @@ class FlightDealsRepository(
             isNonStop = true,
             minBaseFareMxn = 219,
             typicalBaseFareMxn = 499,
-            promoSource = "Tarifa Zero Volaris · Vuelo Directo"
+            promoSource = "Referencial · Tarifa Zero Volaris Directo"
         ),
         RouteTemplate(
             airline = Airline.MEXICANA,
@@ -320,9 +319,63 @@ class FlightDealsRepository(
             durationMin = 145,
             aircraft = "Boeing 737-800",
             isNonStop = true,
-            minBaseFareMxn = 319,
-            typicalBaseFareMxn = 699,
-            promoSource = "Mexicana · Tarifa AIFA Baja Sur"
+            minBaseFareMxn = 329,
+            typicalBaseFareMxn = 719,
+            promoSource = "Referencial · Mexicana (inc. 10kg) Los Cabos"
+        ),
+        RouteTemplate(
+            airline = Airline.MEXICANA,
+            outFlightNum = "MX 1480",
+            retFlightNum = "MX 1481",
+            originCode = "NLU",
+            destCode = "PVR",
+            outDepTime = "07:40",
+            outArrTime = "09:15",
+            retDepTime = "10:05",
+            retArrTime = "11:40",
+            durationMin = 95,
+            aircraft = "Boeing 737-800",
+            isNonStop = true,
+            minBaseFareMxn = 289,
+            typicalBaseFareMxn = 619,
+            promoSource = "Referencial · Mexicana (inc. 10kg) Puerto Vallarta",
+            operatingStride = 2
+        ),
+        RouteTemplate(
+            airline = Airline.MEXICANA,
+            outFlightNum = "MX 1492",
+            retFlightNum = "MX 1493",
+            originCode = "NLU",
+            destCode = "CTM",
+            outDepTime = "10:20",
+            outArrTime = "13:30",
+            retDepTime = "14:15",
+            retArrTime = "15:25",
+            durationMin = 130,
+            aircraft = "Boeing 737-800",
+            isNonStop = true,
+            minBaseFareMxn = 299,
+            typicalBaseFareMxn = 649,
+            promoSource = "Referencial · Mexicana (inc. 10kg) Bacalar/Chetumal",
+            operatingStride = 2
+        ),
+        RouteTemplate(
+            airline = Airline.MEXICANA,
+            outFlightNum = "MX 1468",
+            retFlightNum = "MX 1469",
+            originCode = "NLU",
+            destCode = "ZIH",
+            outDepTime = "12:00",
+            outArrTime = "13:10",
+            retDepTime = "13:55",
+            retArrTime = "15:05",
+            durationMin = 70,
+            aircraft = "Boeing 737-800",
+            isNonStop = true,
+            minBaseFareMxn = 269,
+            typicalBaseFareMxn = 569,
+            promoSource = "Referencial · Mexicana (inc. 10kg) Ixtapa",
+            operatingStride = 2
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -337,9 +390,9 @@ class FlightDealsRepository(
             durationMin = 230,
             aircraft = "Airbus A321neo",
             isNonStop = true,
-            minBaseFareMxn = 289,
-            typicalBaseFareMxn = 699,
-            promoSource = "Tarifa Zero Viva · Nocturno Frontera"
+            minBaseFareMxn = 299,
+            typicalBaseFareMxn = 719,
+            promoSource = "Referencial · Tarifa Zero Viva Tijuana"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -354,9 +407,9 @@ class FlightDealsRepository(
             durationMin = 70,
             aircraft = "Airbus A320",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 429,
-            promoSource = "Tarifa Zero Viva · Escapada Oaxaca"
+            minBaseFareMxn = 209,
+            typicalBaseFareMxn = 459,
+            promoSource = "Referencial · Tarifa Zero Viva Oaxaca"
         ),
         RouteTemplate(
             airline = Airline.AEROMEXICO,
@@ -371,9 +424,9 @@ class FlightDealsRepository(
             durationMin = 120,
             aircraft = "Boeing 737 MAX 9",
             isNonStop = true,
-            minBaseFareMxn = 459,
-            typicalBaseFareMxn = 890,
-            promoSource = "Básica Aeroméxico · AIFA Mérida"
+            minBaseFareMxn = 489,
+            typicalBaseFareMxn = 919,
+            promoSource = "Referencial · Básica Aeroméxico (inc. 10kg)"
         ),
         RouteTemplate(
             airline = Airline.MEXICANA,
@@ -388,49 +441,31 @@ class FlightDealsRepository(
             durationMin = 105,
             aircraft = "Boeing 737-800",
             isNonStop = true,
-            minBaseFareMxn = 269,
-            typicalBaseFareMxn = 589,
-            promoSource = "Mexicana · Pacífico Sinaloa",
+            minBaseFareMxn = 279,
+            typicalBaseFareMxn = 599,
+            promoSource = "Referencial · Mexicana (inc. 10kg) Mazatlán",
             operatingStride = 2
         ),
         RouteTemplate(
-            airline = Airline.VIVA_AEROBUS,
-            outFlightNum = "VB 9420",
-            retFlightNum = "VB 9421",
+            airline = Airline.AERUS,
+            outFlightNum = "ZV 204",
+            retFlightNum = "ZV 205",
             originCode = "NLU",
-            destCode = "BOG",
-            outDepTime = "22:30",
-            outArrTime = "04:10",
-            retDepTime = "05:15",
-            retArrTime = "09:05",
-            durationMin = 280,
-            aircraft = "Airbus A320neo",
+            destCode = "SLP",
+            outDepTime = "08:30",
+            outArrTime = "09:45",
+            retDepTime = "10:20",
+            retArrTime = "11:35",
+            durationMin = 75,
+            aircraft = "Cessna Grand Caravan EX",
             isNonStop = true,
-            minBaseFareMxn = 1490,
-            typicalBaseFareMxn = 2690,
-            promoSource = "Viva Internacional · AIFA - El Dorado",
-            operatingStride = 2
-        ),
-        RouteTemplate(
-            airline = Airline.VIVA_AEROBUS,
-            outFlightNum = "VB 9440",
-            retFlightNum = "VB 9441",
-            originCode = "NLU",
-            destCode = "IAH",
-            outDepTime = "08:50",
-            outArrTime = "11:15",
-            retDepTime = "12:10",
-            retArrTime = "14:30",
-            durationMin = 145,
-            aircraft = "Airbus A320neo",
-            isNonStop = true,
-            minBaseFareMxn = 890,
-            typicalBaseFareMxn = 1690,
-            promoSource = "Viva Internacional · AIFA Texas",
+            minBaseFareMxn = 599,
+            typicalBaseFareMxn = 990,
+            promoSource = "Referencial · Aerus Light Regional",
             operatingStride = 2
         ),
 
-        // MEX (AICM) — Alta frecuencia y competencia directa
+        // ==================== MEX (CDMX AICM) ====================
         RouteTemplate(
             airline = Airline.VOLARIS,
             outFlightNum = "Y4 710",
@@ -444,9 +479,9 @@ class FlightDealsRepository(
             durationMin = 140,
             aircraft = "Airbus A321neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 549,
-            promoSource = "Tarifa Zero Volaris · Salida Temprano AICM"
+            minBaseFareMxn = 219,
+            typicalBaseFareMxn = 569,
+            promoSource = "Referencial · Tarifa Zero Volaris AICM"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -461,9 +496,9 @@ class FlightDealsRepository(
             durationMin = 140,
             aircraft = "Airbus A321neo",
             isNonStop = true,
-            minBaseFareMxn = 219,
-            typicalBaseFareMxn = 569,
-            promoSource = "Tarifa Zero Viva · AICM T1"
+            minBaseFareMxn = 249,
+            typicalBaseFareMxn = 599,
+            promoSource = "Referencial · Tarifa Zero Viva AICM T1"
         ),
         RouteTemplate(
             airline = Airline.AEROMEXICO,
@@ -479,8 +514,26 @@ class FlightDealsRepository(
             aircraft = "Boeing 737 MAX 9",
             isNonStop = true,
             minBaseFareMxn = 699,
-            typicalBaseFareMxn = 1190,
-            promoSource = "Básica Aeroméxico · Terminal 2 AICM"
+            typicalBaseFareMxn = 1249,
+            promoSource = "Referencial · Básica Aeroméxico (inc. 10kg)"
+        ),
+        RouteTemplate(
+            airline = Airline.MAGNICHARTERS,
+            outFlightNum = "UJ 770",
+            retFlightNum = "UJ 771",
+            originCode = "MEX",
+            destCode = "CUN",
+            outDepTime = "09:30",
+            outArrTime = "12:55",
+            retDepTime = "13:50",
+            retArrTime = "15:25",
+            durationMin = 145,
+            aircraft = "Boeing 737-300",
+            isNonStop = true,
+            minBaseFareMxn = 649,
+            typicalBaseFareMxn = 1149,
+            promoSource = "Referencial · Magnicharters Turístico (inc. 10kg)",
+            operatingStride = 2
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -495,9 +548,9 @@ class FlightDealsRepository(
             durationMin = 95,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 499,
-            promoSource = "Tarifa Zero Volaris · Pacífico Directo"
+            minBaseFareMxn = 209,
+            typicalBaseFareMxn = 519,
+            promoSource = "Referencial · Tarifa Zero Volaris Pacífico"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -512,9 +565,27 @@ class FlightDealsRepository(
             durationMin = 95,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 229,
-            typicalBaseFareMxn = 519,
-            promoSource = "Tarifa Zero Viva · Pacífico Tarde"
+            minBaseFareMxn = 239,
+            typicalBaseFareMxn = 549,
+            promoSource = "Referencial · Tarifa Zero Viva Pacífico"
+        ),
+        RouteTemplate(
+            airline = Airline.MAGNICHARTERS,
+            outFlightNum = "UJ 774",
+            retFlightNum = "UJ 775",
+            originCode = "MEX",
+            destCode = "PVR",
+            outDepTime = "11:20",
+            outArrTime = "12:55",
+            retDepTime = "13:45",
+            retArrTime = "15:20",
+            durationMin = 95,
+            aircraft = "Boeing 737-300",
+            isNonStop = true,
+            minBaseFareMxn = 589,
+            typicalBaseFareMxn = 1049,
+            promoSource = "Referencial · Magnicharters (inc. 10kg) Vallarta",
+            operatingStride = 2
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -529,9 +600,9 @@ class FlightDealsRepository(
             durationMin = 145,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 249,
-            typicalBaseFareMxn = 649,
-            promoSource = "Tarifa Zero Volaris · Los Cabos"
+            minBaseFareMxn = 259,
+            typicalBaseFareMxn = 669,
+            promoSource = "Referencial · Tarifa Zero Volaris Los Cabos"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -546,9 +617,44 @@ class FlightDealsRepository(
             durationMin = 75,
             aircraft = "Airbus A320",
             isNonStop = true,
+            minBaseFareMxn = 249,
+            typicalBaseFareMxn = 569,
+            promoSource = "Referencial · Tarifa Zero Viva Huatulco"
+        ),
+        RouteTemplate(
+            airline = Airline.MAGNICHARTERS,
+            outFlightNum = "UJ 782",
+            retFlightNum = "UJ 783",
+            originCode = "MEX",
+            destCode = "HUX",
+            outDepTime = "08:50",
+            outArrTime = "10:05",
+            retDepTime = "10:55",
+            retArrTime = "12:10",
+            durationMin = 75,
+            aircraft = "Boeing 737-300",
+            isNonStop = true,
+            minBaseFareMxn = 549,
+            typicalBaseFareMxn = 989,
+            promoSource = "Referencial · Magnicharters (inc. 10kg) Huatulco",
+            operatingStride = 2
+        ),
+        RouteTemplate(
+            airline = Airline.VIVA_AEROBUS,
+            outFlightNum = "VB 1316",
+            retFlightNum = "VB 1317",
+            originCode = "MEX",
+            destCode = "PXM",
+            outDepTime = "08:35",
+            outArrTime = "09:50",
+            retDepTime = "10:35",
+            retArrTime = "11:50",
+            durationMin = 75,
+            aircraft = "Airbus A320neo",
+            isNonStop = true,
             minBaseFareMxn = 239,
             typicalBaseFareMxn = 549,
-            promoSource = "Tarifa Zero Viva · Bahías de Huatulco"
+            promoSource = "Referencial · Tarifa Zero Viva Puerto Escondido"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -563,65 +669,48 @@ class FlightDealsRepository(
             durationMin = 130,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 259,
-            typicalBaseFareMxn = 599,
-            promoSource = "Tarifa Zero Volaris · Nuevo Tulum"
-        ),
-        RouteTemplate(
-            airline = Airline.VOLARIS,
-            outFlightNum = "Y4 902",
-            retFlightNum = "Y4 903",
-            originCode = "MEX",
-            destCode = "LAX",
-            outDepTime = "07:00",
-            outArrTime = "09:15",
-            retDepTime = "11:00",
-            retArrTime = "16:50",
-            durationMin = 255,
-            aircraft = "Airbus A320neo",
-            isNonStop = true,
-            minBaseFareMxn = 1290,
-            typicalBaseFareMxn = 2390,
-            promoSource = "Volaris Internacional · California"
+            minBaseFareMxn = 269,
+            typicalBaseFareMxn = 619,
+            promoSource = "Referencial · Tarifa Zero Volaris Tulum"
         ),
         RouteTemplate(
             airline = Airline.AEROMEXICO,
-            outFlightNum = "AM 408",
-            retFlightNum = "AM 409",
+            outFlightNum = "AM 560",
+            retFlightNum = "AM 561",
             originCode = "MEX",
-            destCode = "JFK",
-            outDepTime = "08:45",
-            outArrTime = "15:00",
-            retDepTime = "16:40",
-            retArrTime = "21:20",
-            durationMin = 315,
-            aircraft = "Boeing 737 MAX 9",
+            destCode = "ACA",
+            outDepTime = "08:00",
+            outArrTime = "09:05",
+            retDepTime = "09:50",
+            retArrTime = "10:55",
+            durationMin = 65,
+            aircraft = "Embraer 190",
             isNonStop = true,
-            minBaseFareMxn = 2290,
-            typicalBaseFareMxn = 3890,
-            promoSource = "Básica Aeroméxico · Nueva York Directo",
+            minBaseFareMxn = 549,
+            typicalBaseFareMxn = 990,
+            promoSource = "Referencial · Básica Aeroméxico Acapulco",
             operatingStride = 2
         ),
         RouteTemplate(
-            airline = Airline.AEROMEXICO,
-            outFlightNum = "AM 21",
-            retFlightNum = "AM 22",
+            airline = Airline.MAGNICHARTERS,
+            outFlightNum = "UJ 788",
+            retFlightNum = "UJ 789",
             originCode = "MEX",
-            destCode = "MAD",
-            outDepTime = "18:20",
-            outArrTime = "12:10",
-            retDepTime = "14:25",
-            retArrTime = "19:30",
-            durationMin = 650,
-            aircraft = "Boeing 787-9 Dreamliner",
+            destCode = "ZIH",
+            outDepTime = "10:15",
+            outArrTime = "11:20",
+            retDepTime = "12:10",
+            retArrTime = "13:15",
+            durationMin = 65,
+            aircraft = "Boeing 737-300",
             isNonStop = true,
-            minBaseFareMxn = 5990,
-            typicalBaseFareMxn = 8990,
-            promoSource = "Aeroméxico Europa · Dreamliner Directo",
+            minBaseFareMxn = 539,
+            typicalBaseFareMxn = 949,
+            promoSource = "Referencial · Magnicharters (inc. 10kg) Ixtapa",
             operatingStride = 2
         ),
 
-        // GDL — Guadalajara Hub
+        // ==================== GDL (Guadalajara Hub) ====================
         RouteTemplate(
             airline = Airline.VOLARIS,
             outFlightNum = "Y4 210",
@@ -636,8 +725,8 @@ class FlightDealsRepository(
             aircraft = "Airbus A320neo",
             isNonStop = true,
             minBaseFareMxn = 199,
-            typicalBaseFareMxn = 419,
-            promoSource = "Tarifa Zero Volaris · Salto Costa Jalisco"
+            typicalBaseFareMxn = 429,
+            promoSource = "Referencial · Tarifa Zero Volaris GDL-PVR"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -652,9 +741,9 @@ class FlightDealsRepository(
             durationMin = 165,
             aircraft = "Airbus A321neo",
             isNonStop = true,
-            minBaseFareMxn = 219,
-            typicalBaseFareMxn = 599,
-            promoSource = "Tarifa Zero Viva · GDL - Caribe"
+            minBaseFareMxn = 239,
+            typicalBaseFareMxn = 619,
+            promoSource = "Referencial · Tarifa Zero Viva GDL-Caribe"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -669,26 +758,27 @@ class FlightDealsRepository(
             durationMin = 165,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 579,
-            promoSource = "Tarifa Zero Volaris · Promo Flash GDL"
+            minBaseFareMxn = 219,
+            typicalBaseFareMxn = 599,
+            promoSource = "Referencial · Tarifa Zero Volaris GDL-Cancún"
         ),
         RouteTemplate(
-            airline = Airline.VOLARIS,
-            outFlightNum = "Y4 940",
-            retFlightNum = "Y4 941",
+            airline = Airline.MAGNICHARTERS,
+            outFlightNum = "UJ 640",
+            retFlightNum = "UJ 641",
             originCode = "GDL",
-            destCode = "LAX",
-            outDepTime = "09:20",
-            outArrTime = "11:05",
-            retDepTime = "12:15",
-            retArrTime = "17:35",
-            durationMin = 225,
-            aircraft = "Airbus A321neo",
+            destCode = "CUN",
+            outDepTime = "08:40",
+            outArrTime = "12:30",
+            retDepTime = "13:25",
+            retArrTime = "15:20",
+            durationMin = 170,
+            aircraft = "Boeing 737-300",
             isNonStop = true,
-            minBaseFareMxn = 1090,
-            typicalBaseFareMxn = 2090,
-            promoSource = "Volaris Internacional · GDL California"
+            minBaseFareMxn = 679,
+            typicalBaseFareMxn = 1190,
+            promoSource = "Referencial · Magnicharters (inc. 10kg) GDL-Cancún",
+            operatingStride = 2
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -703,12 +793,47 @@ class FlightDealsRepository(
             durationMin = 200,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 239,
-            typicalBaseFareMxn = 599,
-            promoSource = "Tarifa Zero Viva · GDL - Tijuana"
+            minBaseFareMxn = 249,
+            typicalBaseFareMxn = 619,
+            promoSource = "Referencial · Tarifa Zero Viva GDL-Tijuana"
+        ),
+        RouteTemplate(
+            airline = Airline.VOLARIS,
+            outFlightNum = "Y4 248",
+            retFlightNum = "Y4 249",
+            originCode = "GDL",
+            destCode = "SJD",
+            outDepTime = "10:10",
+            outArrTime = "10:40",
+            retDepTime = "11:25",
+            retArrTime = "13:55",
+            durationMin = 90,
+            aircraft = "Airbus A320neo",
+            isNonStop = true,
+            minBaseFareMxn = 219,
+            typicalBaseFareMxn = 529,
+            promoSource = "Referencial · Tarifa Zero Volaris GDL-Cabos"
+        ),
+        RouteTemplate(
+            airline = Airline.TAR,
+            outFlightNum = "YQ 520",
+            retFlightNum = "YQ 521",
+            originCode = "GDL",
+            destCode = "LAP",
+            outDepTime = "11:15",
+            outArrTime = "12:00",
+            retDepTime = "12:40",
+            retArrTime = "15:25",
+            durationMin = 105,
+            aircraft = "Embraer ERJ-145",
+            isNonStop = true,
+            minBaseFareMxn = 579,
+            typicalBaseFareMxn = 990,
+            promoSource = "Referencial · TAR Aerolíneas (inc. 10kg) La Paz",
+            operatingStride = 2
         ),
 
-        // MTY — Monterrey Hub
+        // ==================== MTY (Monterrey Hub) ====================
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
             outFlightNum = "VB 4010",
@@ -722,9 +847,9 @@ class FlightDealsRepository(
             durationMin = 140,
             aircraft = "Airbus A321neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 549,
-            promoSource = "Tarifa Zero Viva · Hub Monterrey"
+            minBaseFareMxn = 219,
+            typicalBaseFareMxn = 569,
+            promoSource = "Referencial · Tarifa Zero Viva Hub Monterrey"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -739,9 +864,27 @@ class FlightDealsRepository(
             durationMin = 140,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 209,
-            typicalBaseFareMxn = 569,
-            promoSource = "Tarifa Zero Volaris · Regio Caribe"
+            minBaseFareMxn = 219,
+            typicalBaseFareMxn = 579,
+            promoSource = "Referencial · Tarifa Zero Volaris Regio-Caribe"
+        ),
+        RouteTemplate(
+            airline = Airline.MAGNICHARTERS,
+            outFlightNum = "UJ 510",
+            retFlightNum = "UJ 511",
+            originCode = "MTY",
+            destCode = "CUN",
+            outDepTime = "08:15",
+            outArrTime = "11:40",
+            retDepTime = "12:35",
+            retArrTime = "14:10",
+            durationMin = 145,
+            aircraft = "Boeing 737-300",
+            isNonStop = true,
+            minBaseFareMxn = 629,
+            typicalBaseFareMxn = 1090,
+            promoSource = "Referencial · Magnicharters (inc. 10kg) MTY-Cancún",
+            operatingStride = 2
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
@@ -756,45 +899,169 @@ class FlightDealsRepository(
             durationMin = 105,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 489,
-            promoSource = "Tarifa Zero Viva · Monterrey Pacífico"
+            minBaseFareMxn = 209,
+            typicalBaseFareMxn = 499,
+            promoSource = "Referencial · Tarifa Zero Viva MTY-Pacífico"
+        ),
+        RouteTemplate(
+            airline = Airline.MAGNICHARTERS,
+            outFlightNum = "UJ 522",
+            retFlightNum = "UJ 523",
+            originCode = "MTY",
+            destCode = "MZT",
+            outDepTime = "10:30",
+            outArrTime = "10:55",
+            retDepTime = "11:45",
+            retArrTime = "14:10",
+            durationMin = 85,
+            aircraft = "Boeing 737-300",
+            isNonStop = true,
+            minBaseFareMxn = 519,
+            typicalBaseFareMxn = 899,
+            promoSource = "Referencial · Magnicharters (inc. 10kg) Mazatlán",
+            operatingStride = 2
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
-            outFlightNum = "VB 4510",
-            retFlightNum = "VB 4511",
+            outFlightNum = "VB 4072",
+            retFlightNum = "VB 4073",
             originCode = "MTY",
-            destCode = "IAH",
-            outDepTime = "11:30",
-            outArrTime = "13:05",
-            retDepTime = "14:00",
-            retArrTime = "15:35",
-            durationMin = 95,
-            aircraft = "Airbus A320",
-            isNonStop = true,
-            minBaseFareMxn = 790,
-            typicalBaseFareMxn = 1490,
-            promoSource = "Viva Internacional · MTY - Houston"
-        ),
-
-        // TIJ, BJX, QRO, CUN
-        RouteTemplate(
-            airline = Airline.VOLARIS,
-            outFlightNum = "Y4 810",
-            retFlightNum = "Y4 811",
-            originCode = "TIJ",
             destCode = "SJD",
-            outDepTime = "08:00",
-            outArrTime = "11:05",
-            retDepTime = "11:55",
-            retArrTime = "13:10",
+            outDepTime = "11:50",
+            outArrTime = "12:55",
+            retDepTime = "13:40",
+            retArrTime = "16:45",
             durationMin = 125,
             aircraft = "Airbus A320neo",
             isNonStop = true,
-            minBaseFareMxn = 199,
-            typicalBaseFareMxn = 499,
-            promoSource = "Tarifa Zero Volaris · Baja Directo"
+            minBaseFareMxn = 249,
+            typicalBaseFareMxn = 599,
+            promoSource = "Referencial · Tarifa Zero Viva MTY-Cabos"
+        ),
+        RouteTemplate(
+            airline = Airline.AERUS,
+            outFlightNum = "ZV 102",
+            retFlightNum = "ZV 103",
+            originCode = "MTY",
+            destCode = "TAM",
+            outDepTime = "07:20",
+            outArrTime = "08:30",
+            retDepTime = "09:10",
+            retArrTime = "10:20",
+            durationMin = 70,
+            aircraft = "Cessna Grand Caravan EX",
+            isNonStop = true,
+            minBaseFareMxn = 499,
+            typicalBaseFareMxn = 879,
+            promoSource = "Referencial · Aerus Light MTY-Tampico"
+        ),
+        RouteTemplate(
+            airline = Airline.AERUS,
+            outFlightNum = "ZV 118",
+            retFlightNum = "ZV 119",
+            originCode = "MTY",
+            destCode = "VER",
+            outDepTime = "11:00",
+            outArrTime = "12:55",
+            retDepTime = "13:40",
+            retArrTime = "15:35",
+            durationMin = 115,
+            aircraft = "Cessna Grand Caravan EX",
+            isNonStop = true,
+            minBaseFareMxn = 649,
+            typicalBaseFareMxn = 1090,
+            promoSource = "Referencial · Aerus Light Golfo",
+            operatingStride = 2
+        ),
+        RouteTemplate(
+            airline = Airline.TAR,
+            outFlightNum = "YQ 440",
+            retFlightNum = "YQ 441",
+            originCode = "MTY",
+            destCode = "TRC",
+            outDepTime = "08:10",
+            outArrTime = "09:10",
+            retDepTime = "18:00",
+            retArrTime = "19:00",
+            durationMin = 60,
+            aircraft = "Embraer ERJ-145",
+            isNonStop = true,
+            minBaseFareMxn = 499,
+            typicalBaseFareMxn = 859,
+            promoSource = "Referencial · TAR Aerolíneas (inc. 10kg) Torreón",
+            operatingStride = 2
+        ),
+
+        // ==================== QRO, BJX, TIJ, TLC, PBC, CUN, VER, MZT (Regionales y Playas) ====================
+        RouteTemplate(
+            airline = Airline.TAR,
+            outFlightNum = "YQ 310",
+            retFlightNum = "YQ 311",
+            originCode = "QRO",
+            destCode = "PVR",
+            outDepTime = "09:20",
+            outArrTime = "10:35",
+            retDepTime = "11:15",
+            retArrTime = "12:30",
+            durationMin = 75,
+            aircraft = "Embraer ERJ-145",
+            isNonStop = true,
+            minBaseFareMxn = 529,
+            typicalBaseFareMxn = 949,
+            promoSource = "Referencial · TAR Hub Querétaro (inc. 10kg)"
+        ),
+        RouteTemplate(
+            airline = Airline.TAR,
+            outFlightNum = "YQ 324",
+            retFlightNum = "YQ 325",
+            originCode = "QRO",
+            destCode = "MZT",
+            outDepTime = "13:10",
+            outArrTime = "13:40",
+            retDepTime = "14:20",
+            retArrTime = "16:50",
+            durationMin = 90,
+            aircraft = "Embraer ERJ-145",
+            isNonStop = true,
+            minBaseFareMxn = 549,
+            typicalBaseFareMxn = 979,
+            promoSource = "Referencial · TAR Querétaro-Mazatlán (inc. 10kg)",
+            operatingStride = 2
+        ),
+        RouteTemplate(
+            airline = Airline.TAR,
+            outFlightNum = "YQ 336",
+            retFlightNum = "YQ 337",
+            originCode = "QRO",
+            destCode = "ZIH",
+            outDepTime = "10:40",
+            outArrTime = "11:45",
+            retDepTime = "12:25",
+            retArrTime = "13:30",
+            durationMin = 65,
+            aircraft = "Embraer ERJ-145",
+            isNonStop = true,
+            minBaseFareMxn = 519,
+            typicalBaseFareMxn = 899,
+            promoSource = "Referencial · TAR Querétaro-Ixtapa (inc. 10kg)",
+            operatingStride = 2
+        ),
+        RouteTemplate(
+            airline = Airline.VIVA_AEROBUS,
+            outFlightNum = "VB 5120",
+            retFlightNum = "VB 5121",
+            originCode = "QRO",
+            destCode = "CUN",
+            outDepTime = "10:40",
+            outArrTime = "14:00",
+            retDepTime = "14:45",
+            retArrTime = "16:15",
+            durationMin = 140,
+            aircraft = "Airbus A320neo",
+            isNonStop = true,
+            minBaseFareMxn = 229,
+            typicalBaseFareMxn = 579,
+            promoSource = "Referencial · Tarifa Zero Viva Querétaro-Cancún"
         ),
         RouteTemplate(
             airline = Airline.VOLARIS,
@@ -810,120 +1077,135 @@ class FlightDealsRepository(
             aircraft = "Airbus A320neo",
             isNonStop = true,
             minBaseFareMxn = 199,
-            typicalBaseFareMxn = 469,
-            promoSource = "Tarifa Zero Volaris · Bajío Pacífico"
+            typicalBaseFareMxn = 479,
+            promoSource = "Referencial · Tarifa Zero Volaris Bajío-Pacífico"
+        ),
+        RouteTemplate(
+            airline = Airline.VOLARIS,
+            outFlightNum = "Y4 810",
+            retFlightNum = "Y4 811",
+            originCode = "TIJ",
+            destCode = "SJD",
+            outDepTime = "08:00",
+            outArrTime = "11:05",
+            retDepTime = "11:55",
+            retArrTime = "13:10",
+            durationMin = 125,
+            aircraft = "Airbus A320neo",
+            isNonStop = true,
+            minBaseFareMxn = 209,
+            typicalBaseFareMxn = 519,
+            promoSource = "Referencial · Tarifa Zero Volaris Baja Directo"
         ),
         RouteTemplate(
             airline = Airline.VIVA_AEROBUS,
-            outFlightNum = "VB 5120",
-            retFlightNum = "VB 5121",
-            originCode = "QRO",
+            outFlightNum = "VB 5310",
+            retFlightNum = "VB 5311",
+            originCode = "TLC",
             destCode = "CUN",
-            outDepTime = "10:40",
-            outArrTime = "14:00",
-            retDepTime = "14:45",
-            retArrTime = "16:15",
+            outDepTime = "07:10",
+            outArrTime = "10:30",
+            retDepTime = "11:20",
+            retArrTime = "12:50",
             durationMin = 140,
             aircraft = "Airbus A320neo",
             isNonStop = true,
+            minBaseFareMxn = 209,
+            typicalBaseFareMxn = 519,
+            promoSource = "Referencial · Tarifa Zero Viva Toluca-Cancún"
+        ),
+        RouteTemplate(
+            airline = Airline.VOLARIS,
+            outFlightNum = "Y4 620",
+            retFlightNum = "Y4 621",
+            originCode = "TLC",
+            destCode = "PVR",
+            outDepTime = "09:05",
+            outArrTime = "10:35",
+            retDepTime = "11:20",
+            retArrTime = "12:50",
+            durationMin = 90,
+            aircraft = "Airbus A320neo",
+            isNonStop = true,
+            minBaseFareMxn = 199,
+            typicalBaseFareMxn = 469,
+            promoSource = "Referencial · Tarifa Zero Volaris Toluca-Vallarta"
+        ),
+        RouteTemplate(
+            airline = Airline.VIVA_AEROBUS,
+            outFlightNum = "VB 5410",
+            retFlightNum = "VB 5411",
+            originCode = "PBC",
+            destCode = "CUN",
+            outDepTime = "09:30",
+            outArrTime = "12:45",
+            retDepTime = "13:30",
+            retArrTime = "14:55",
+            durationMin = 135,
+            aircraft = "Airbus A320neo",
+            isNonStop = true,
             minBaseFareMxn = 219,
-            typicalBaseFareMxn = 559,
-            promoSource = "Tarifa Zero Viva · Querétaro TUA Baja"
+            typicalBaseFareMxn = 549,
+            promoSource = "Referencial · Tarifa Zero Viva Puebla-Cancún"
         ),
         RouteTemplate(
-            airline = Airline.VIVA_AEROBUS,
-            outFlightNum = "VB 5600",
-            retFlightNum = "VB 5601",
+            airline = Airline.AERUS,
+            outFlightNum = "ZV 310",
+            retFlightNum = "ZV 311",
             originCode = "CUN",
-            destCode = "MIA",
-            outDepTime = "12:15",
-            outArrTime = "15:00",
-            retDepTime = "16:10",
-            retArrTime = "17:00",
-            durationMin = 105,
-            aircraft = "Airbus A320neo",
+            destCode = "CZM",
+            outDepTime = "09:00",
+            outArrTime = "09:35",
+            retDepTime = "10:15",
+            retArrTime = "10:50",
+            durationMin = 35,
+            aircraft = "Cessna Grand Caravan EX",
             isNonStop = true,
-            minBaseFareMxn = 890,
-            typicalBaseFareMxn = 1690,
-            promoSource = "Viva Internacional · Caribe - Florida",
+            minBaseFareMxn = 449,
+            typicalBaseFareMxn = 799,
+            promoSource = "Referencial · Aerus Puente Aéreo Cozumel"
+        ),
+        RouteTemplate(
+            airline = Airline.AERUS,
+            outFlightNum = "ZV 322",
+            retFlightNum = "ZV 323",
+            originCode = "VER",
+            destCode = "VSA",
+            outDepTime = "08:15",
+            outArrTime = "09:35",
+            retDepTime = "10:15",
+            retArrTime = "11:35",
+            durationMin = 80,
+            aircraft = "Cessna Grand Caravan EX",
+            isNonStop = true,
+            minBaseFareMxn = 529,
+            typicalBaseFareMxn = 899,
+            promoSource = "Referencial · Aerus Golfo Sureste",
             operatingStride = 2
         ),
         RouteTemplate(
-            airline = Airline.VOLARIS,
-            outFlightNum = "Y4 3910",
-            retFlightNum = "Y4 3911",
-            originCode = "CUN",
-            destCode = "SJO",
-            outDepTime = "11:20",
-            outArrTime = "13:00",
-            retDepTime = "13:55",
-            retArrTime = "17:35",
-            durationMin = 160,
-            aircraft = "Airbus A320neo",
+            airline = Airline.TAR,
+            outFlightNum = "YQ 540",
+            retFlightNum = "YQ 541",
+            originCode = "MZT",
+            destCode = "LAP",
+            outDepTime = "10:00",
+            outArrTime = "11:05",
+            retDepTime = "11:45",
+            retArrTime = "12:50",
+            durationMin = 65,
+            aircraft = "Embraer ERJ-145",
             isNonStop = true,
-            minBaseFareMxn = 1190,
-            typicalBaseFareMxn = 2190,
-            promoSource = "Volaris Centroamérica · Costa Rica",
-            operatingStride = 2
-        ),
-        RouteTemplate(
-            airline = Airline.VIVA_AEROBUS,
-            outFlightNum = "VB 1420",
-            retFlightNum = "VB 1421",
-            originCode = "MEX",
-            destCode = "LAS",
-            outDepTime = "13:45",
-            outArrTime = "15:55",
-            retDepTime = "17:10",
-            retArrTime = "23:10",
-            durationMin = 250,
-            aircraft = "Airbus A321neo",
-            isNonStop = true,
-            minBaseFareMxn = 1390,
-            typicalBaseFareMxn = 2490,
-            promoSource = "Viva Internacional · Las Vegas Flash",
-            operatingStride = 2
-        ),
-        RouteTemplate(
-            airline = Airline.VOLARIS,
-            outFlightNum = "Y4 980",
-            retFlightNum = "Y4 981",
-            originCode = "MEX",
-            destCode = "ORD",
-            outDepTime = "23:15",
-            outArrTime = "04:20",
-            retDepTime = "06:00",
-            retArrTime = "10:25",
-            durationMin = 245,
-            aircraft = "Airbus A321neo",
-            isNonStop = true,
-            minBaseFareMxn = 1490,
-            typicalBaseFareMxn = 2690,
-            promoSource = "Volaris Internacional · Chicago Nocturno",
-            operatingStride = 2
-        ),
-        RouteTemplate(
-            airline = Airline.AEROMEXICO,
-            outFlightNum = "AM 690",
-            retFlightNum = "AM 691",
-            originCode = "MEX",
-            destCode = "GUA",
-            outDepTime = "09:50",
-            outArrTime = "11:45",
-            retDepTime = "12:40",
-            retArrTime = "14:40",
-            durationMin = 115,
-            aircraft = "Boeing 737-800",
-            isNonStop = true,
-            minBaseFareMxn = 1190,
-            typicalBaseFareMxn = 1990,
-            promoSource = "Básica Aeroméxico · Centroamérica",
+            minBaseFareMxn = 489,
+            typicalBaseFareMxn = 859,
+            promoSource = "Referencial · TAR Mar de Cortés (inc. 10kg)",
             operatingStride = 2
         )
     )
 
     private val baseCatalog: List<FlightDeal> by lazy { build90DayCatalog() }
     private val liveFaresByKey = ConcurrentHashMap<String, ScrapedFare>()
+    private val histogramWindowsByRoute = ConcurrentHashMap<String, RouteHistogramWindow>()
 
     @Volatile
     private var mergedCatalogCache: List<FlightDeal>? = null
@@ -933,10 +1215,37 @@ class FlightDealsRepository(
             mergedCatalogCache ?: rebuildMergedCatalog().also { mergedCatalogCache = it }
         }
 
-    fun applyLiveFares(fares: List<ScrapedFare>): Int {
-        if (fares.isEmpty()) return liveFaresByKey.size
+    fun applyLiveFares(
+        fares: List<ScrapedFare>,
+        windows: List<RouteHistogramWindow> = emptyList()
+    ): Int {
+        if (fares.isEmpty() && windows.isEmpty()) return liveFaresByKey.size
         var changed = false
+
+        for (window in windows) {
+            if (!AirportData.isDomesticMexicanAirport(window.originCode) ||
+                !AirportData.isDomesticMexicanAirport(window.destinationCode)
+            ) continue
+            val rKey = "${window.airline.iataCode}_${window.originCode}_${window.destinationCode}"
+            val prev = histogramWindowsByRoute[rKey]
+            val merged = if (prev == null) {
+                window
+            } else {
+                prev.copy(
+                    minDate = minOf(prev.minDate, window.minDate),
+                    maxDate = maxOf(prev.maxDate, window.maxDate)
+                )
+            }
+            if (prev != merged) {
+                histogramWindowsByRoute[rKey] = merged
+                changed = true
+            }
+        }
+
         for (fare in fares) {
+            if (!AirportData.isDomesticMexicanAirport(fare.originCode) ||
+                !AirportData.isDomesticMexicanAirport(fare.destinationCode)
+            ) continue
             val key = fareKey(fare.airline, fare.originCode, fare.destinationCode, fare.departureDate)
             val prev = liveFaresByKey[key]
             val mergedFare = if (fare.tuaMxn == null && prev?.tuaMxn != null) {
@@ -972,11 +1281,11 @@ class FlightDealsRepository(
     ): String = "${airline.iataCode}_${originCode.uppercase()}_${destCode.uppercase()}_${date.isoString}"
 
     private fun rebuildMergedCatalog(): List<FlightDeal> {
-        if (liveFaresByKey.isEmpty()) return baseCatalog
+        if (liveFaresByKey.isEmpty() && histogramWindowsByRoute.isEmpty()) return baseCatalog
 
-        // Route-level live minimums and exact live TUAs (e.g. Viva Aerobus additionalFeesAmount)
         val minLivePriceByRouteAirline = HashMap<String, Int>()
         val routeTuaByAirlineRoute = HashMap<String, Int>()
+        val originTuaByAirlineOrigin = HashMap<String, Int>()
         for (scraped in liveFaresByKey.values) {
             val routeKey = "${scraped.airline.iataCode}_${scraped.originCode}_${scraped.destinationCode}"
             val currentMin = minLivePriceByRouteAirline[routeKey]
@@ -985,22 +1294,35 @@ class FlightDealsRepository(
             }
             if (scraped.tuaMxn != null) {
                 routeTuaByAirlineRoute.putIfAbsent(routeKey, scraped.tuaMxn)
+                originTuaByAirlineOrigin.putIfAbsent("${scraped.airline.iataCode}_${scraped.originCode}", scraped.tuaMxn)
             }
         }
 
         val matchedKeys = HashSet<String>()
         val primaryUpdatedKeys = HashSet<String>()
 
-        val updatedBase = baseCatalog.map { deal ->
+        val updatedBase = baseCatalog.mapNotNull { deal ->
             val key = fareKey(deal.airline, deal.originCode, deal.destinationCode, deal.departureDate)
             val routeKey = "${deal.airline.iataCode}_${deal.originCode}_${deal.destinationCode}"
             val routeTua = routeTuaByAirlineRoute[routeKey]
+                ?: originTuaByAirlineOrigin["${deal.airline.iataCode}_${deal.originCode}"]
             val scraped = liveFaresByKey[key]
+            val liveWindow = histogramWindowsByRoute[routeKey]
+
             if (scraped == null) {
+                // CRITICAL FIX: If the live dailyHistogram inspected this exact route & date
+                // and returned 0 (no flight / no promo available), drop the phantom catalog row!
+                if (liveWindow != null &&
+                    deal.departureDate >= liveWindow.minDate &&
+                    deal.departureDate <= liveWindow.maxDate
+                ) {
+                    return@mapNotNull null
+                }
+
                 val routeMinLive = minLivePriceByRouteAirline[routeKey]
                 if (routeMinLive != null || routeTua != null) {
                     deal.copy(
-                        baseFareMxn = if (routeMinLive != null) maxOf(deal.baseFareMxn, routeMinLive + 120) else deal.baseFareMxn,
+                        baseFareMxn = if (routeMinLive != null) maxOf(deal.baseFareMxn, routeMinLive + 140) else deal.baseFareMxn,
                         originTuaMxn = routeTua ?: deal.originTuaMxn
                     )
                 } else {
@@ -1024,13 +1346,13 @@ class FlightDealsRepository(
                         originTuaMxn = resolvedTua,
                         isLiveVerified = true,
                         liveSourceLabel = "En vivo · $siteLabel",
-                        promoSourceDescription = "Tarifa real $siteLabel$ageNote",
+                        promoSourceDescription = "Tarifa Zero real $siteLabel$ageNote",
                         liveBookingUrl = resolvedLiveUrl
                     )
                 } else {
                     // Secondary flight on the same day must not undercut the live minimum fare
                     deal.copy(
-                        baseFareMxn = maxOf(deal.baseFareMxn, scraped.baseFareMxn + 120),
+                        baseFareMxn = maxOf(deal.baseFareMxn, scraped.baseFareMxn + 140),
                         originTuaMxn = resolvedTua,
                         isLiveVerified = false,
                         liveSourceLabel = null
@@ -1044,13 +1366,15 @@ class FlightDealsRepository(
             if (key in matchedKeys) continue
             val originAirport = AirportData.findByCode(scraped.originCode) ?: continue
             val destAirport = AirportData.findByCode(scraped.destinationCode) ?: continue
+            if (!originAirport.isMexican || !destAirport.isMexican) continue
+
             val distanceKm = originAirport.distanceKmTo(destAirport.latitude, destAirport.longitude)
-            val estDurationMin = ((distanceKm / 720.0) * 60.0).roundToInt().coerceIn(45, 420)
-            val isIntl = !originAirport.isMexican || !destAirport.isMexican
+            val estDurationMin = ((distanceKm / 720.0) * 60.0).roundToInt().coerceIn(45, 280)
             val routeKey = "${scraped.airline.iataCode}_${scraped.originCode}_${scraped.destinationCode}"
             val originTua = scraped.tuaMxn
                 ?: routeTuaByAirlineRoute[routeKey]
-                ?: originAirport.tuaForFlight(isIntl)
+                ?: originTuaByAirlineOrigin["${scraped.airline.iataCode}_${scraped.originCode}"]
+                ?: originAirport.tuaForFlight(false)
             val depHour = 7 + (abs(scraped.originCode.hashCode() + scraped.destinationCode.hashCode()) % 12)
             val depTime = String.format(Locale.US, "%02d:15", depHour)
             val totalArrMin = depHour * 60 + 15 + estDurationMin
@@ -1081,8 +1405,8 @@ class FlightDealsRepository(
                     layoverDurationMinutes = null,
                     baseFareMxn = scraped.baseFareMxn,
                     originTuaMxn = originTua,
-                    isInternational = isIntl,
-                    promoSourceDescription = "Tarifa real $siteLabel$ageNote",
+                    isInternational = false,
+                    promoSourceDescription = "Tarifa Zero real $siteLabel$ageNote",
                     seatsRemaining = 4,
                     isLiveVerified = true,
                     liveSourceLabel = "En vivo · $siteLabel",
@@ -1095,7 +1419,7 @@ class FlightDealsRepository(
     }
 
     private fun build90DayCatalog(): List<FlightDeal> {
-        val result = ArrayList<FlightDeal>(4500)
+        val result = ArrayList<FlightDeal>(6000)
         for (dayOffset in 0 until 90) {
             val date = baseDate.plusDays(dayOffset)
             val dow = date.dayOfWeekMondayFirst // 1=Mon .. 7=Sun
@@ -1103,7 +1427,6 @@ class FlightDealsRepository(
             templates.forEachIndexed { idx, tpl ->
                 if (dayOffset % tpl.operatingStride != 0) return@forEachIndexed
 
-                // Outbound deal
                 val outFare = computeDynamicFare(
                     minFare = tpl.minBaseFareMxn,
                     typicalFare = tpl.typicalBaseFareMxn,
@@ -1134,7 +1457,6 @@ class FlightDealsRepository(
                     )
                 )
 
-                // Bidirectional return deal (ensures round-trip works for every route in Calendar)
                 val retFare = computeDynamicFare(
                     minFare = tpl.minBaseFareMxn,
                     typicalFare = tpl.typicalBaseFareMxn,
@@ -1190,9 +1512,7 @@ class FlightDealsRepository(
         seed: Int
     ): FlightDeal {
         val originAirport = AirportData.findByCode(originCode)
-        val destAirport = AirportData.findByCode(destCode)
-        val isInternational = (originAirport?.isMexican == false) || (destAirport?.isMexican == false)
-        val originTua = originAirport?.tuaForFlight(isInternational) ?: 520
+        val originTua = originAirport?.tuaForFlight(false) ?: 520
         val depHour = depTime.substringBefore(":").toIntOrNull() ?: 10
         val seatsRemaining = 2 + (abs(dayOffset * 3 + seed) % 7)
 
@@ -1214,7 +1534,7 @@ class FlightDealsRepository(
             layoverDurationMinutes = layoverMin,
             baseFareMxn = baseFareMxn,
             originTuaMxn = originTua,
-            isInternational = isInternational,
+            isInternational = false,
             promoSourceDescription = promoSource,
             seatsRemaining = seatsRemaining
         )
@@ -1227,21 +1547,19 @@ class FlightDealsRepository(
         dow: Int,
         seed: Int
     ): Int {
-        // Flash promo days: Tue(2), Wed(3), Sat(6), or deterministic promo wave every few days
         val isFlashWave = ((dayOffset + seed) % 5 == 0) || dow == 2 || dow == 3
         if (isFlashWave && dayOffset >= 2) {
             return minFare
         }
         val weekendMultiplier = when (dow) {
-            5, 7 -> 1.15 // Vie / Dom ligeramente más alto
-            6 -> 0.85 // Sáb intermedio
+            5, 7 -> 1.15
+            6 -> 0.85
             1, 4 -> 0.92
             else -> 0.78
         }
         val wave = ((abs(dayOffset * 7 + seed * 13) % 10) / 10.0)
         val interpolated = minFare + ((typicalFare - minFare) * (0.25 + 0.55 * wave) * weekendMultiplier).toInt()
         val clamped = interpolated.coerceIn(minFare, typicalFare + 180)
-        // Redondear a terminación realista (9)
         return ((clamped / 10) * 10) + 9
     }
 
@@ -1263,9 +1581,6 @@ class FlightDealsRepository(
         return catalog.filter { it.originCode == o && it.destinationCode == d }
     }
 
-    /**
-     * Returns all supported destinations reachable from a given origin, or all airports if fallback needed.
-     */
     fun getReachableDestinations(originCode: String): List<String> {
         val o = originCode.uppercase()
         return catalog.asSequence()

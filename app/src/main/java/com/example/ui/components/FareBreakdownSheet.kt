@@ -60,6 +60,7 @@ import com.example.util.PendingRedirectRequest
 fun FareBreakdownSheet(
     outbound: FlightDeal,
     returnFlight: FlightDeal?,
+    initialBaggage: BaggagePackage = BaggagePackage.BASICA_10KG,
     onRequestExternalRedirect: (PendingRedirectRequest) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -70,7 +71,7 @@ fun FareBreakdownSheet(
     var adults by remember { mutableIntStateOf(1) }
     var children by remember { mutableIntStateOf(0) }
     var infants by remember { mutableIntStateOf(0) }
-    var selectedBaggage by remember { mutableStateOf(BaggagePackage.ZERO) }
+    var selectedBaggage by remember(initialBaggage) { mutableStateOf(initialBaggage) }
     var selectedSeat by remember { mutableStateOf(SeatOption.ALEATORIO) }
 
     val breakdown = remember(outbound, returnFlight, adults, children, infants, selectedBaggage, selectedSeat) {

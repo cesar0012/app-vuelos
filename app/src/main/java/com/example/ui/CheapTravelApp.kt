@@ -61,6 +61,7 @@ fun CheapTravelApp(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val priceOptions by viewModel.priceDisplayOptions.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val selectedOrigins by viewModel.selectedOrigins.collectAsStateWithLifecycle()
     val selectedDestinations by viewModel.selectedDestinations.collectAsStateWithLifecycle()
@@ -150,7 +151,10 @@ fun CheapTravelApp(
                 selectedDestinations = selectedDestinations,
                 gpsBanner = gpsBanner,
                 isDarkMode = isDarkMode,
+                priceOptions = priceOptions,
                 onToggleTheme = viewModel::toggleThemeMode,
+                onToggleIncludeTua = viewModel::toggleIncludeTua,
+                onSelectBaggageTier = viewModel::setBaggageTier,
                 onOpenOriginsDialog = { viewModel.openAirportDialog(AirportDialogMode.ORIGINS) },
                 onOpenDestinationsDialog = { viewModel.openAirportDialog(AirportDialogMode.DESTINATIONS) },
                 onRemoveOrigin = viewModel::removeOriginChip,
@@ -206,6 +210,7 @@ fun CheapTravelApp(
                     liveSyncState = liveSyncState,
                     onRefreshLive = { viewModel.refreshLiveDeals(forceRefresh = true) },
                     onQuickFilterSelected = viewModel::setDealQuickFilter,
+                    onAirlineFilterSelected = viewModel::setDealAirlineFilter,
                     onMaxBaseFareChange = viewModel::setDealMaxBaseFare,
                     onSortOrderChange = viewModel::setDealSortOrder,
                     onOpenCalculator = { deal -> viewModel.openCalculator(deal, null) },
@@ -302,6 +307,7 @@ fun CheapTravelApp(
         FareBreakdownSheet(
             outbound = outbound,
             returnFlight = returnFlight,
+            initialBaggage = priceOptions.baggageTier.baggagePackage,
             onRequestExternalRedirect = viewModel::requestExternalRedirect,
             onDismiss = viewModel::closeCalculator
         )
@@ -310,6 +316,7 @@ fun CheapTravelApp(
     promoLocatorDeal?.let { deal ->
         PromoLocatorDialog(
             deal = deal,
+            priceOptions = priceOptions,
             onRequestExternalRedirect = viewModel::requestExternalRedirect,
             onDismiss = viewModel::closePromoLocator
         )

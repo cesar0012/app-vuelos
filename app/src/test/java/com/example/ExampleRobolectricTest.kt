@@ -18,6 +18,7 @@ import com.example.data.AppDatabase
 import com.example.data.FlightAlert
 import com.example.data.FlightDealsRepository
 import com.example.model.Airline
+import com.example.model.PricingBaggageTier
 import com.example.model.TravelDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -81,16 +82,17 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Cheap Travel").assertIsDisplayed()
         composeTestRule.onNodeWithTag("active_airport_chips_row").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("global_pricing_filters_row").assertIsDisplayed()
 
         // Navigate to Buscador tab
         composeTestRule.onNodeWithTag("nav_tab_search").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Buscador Flexible Multi-Ruta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Buscador Nacional Flexible").assertIsDisplayed()
 
         // Navigate to Calendario tab
         composeTestRule.onNodeWithTag("nav_tab_calendar").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("calendar_swap_route_btn").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("calendar_swap_route_btn").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithTag("calendar_swap_route_btn").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("calendar_screen_list")
@@ -105,10 +107,44 @@ class ExampleRobolectricTest {
     }
 
     @Test
+    fun `global pricing filters default to Con TUA plus Basica 10kg and toggle cleanly`() {
+        val vm = androidx.lifecycle.ViewModelProvider(composeTestRule.activity)[com.example.viewmodel.CheapTravelViewModel::class.java]
+        composeTestRule.waitForIdle()
+
+        assertTrue(vm.priceDisplayOptions.value.includeTua)
+        assertEquals(PricingBaggageTier.BASICA_10KG, vm.priceDisplayOptions.value.baggageTier)
+
+        composeTestRule.onNodeWithTag("price_filter_tua_toggle").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+        assertFalse(vm.priceDisplayOptions.value.includeTua)
+
+        composeTestRule.onNodeWithTag("price_filter_tier_zero").performClick()
+        composeTestRule.waitForIdle()
+        assertEquals(PricingBaggageTier.ZERO, vm.priceDisplayOptions.value.baggageTier)
+
+        // Restore defaults
+        composeTestRule.onNodeWithTag("price_filter_tua_toggle").performClick()
+        composeTestRule.onNodeWithTag("price_filter_tier_basica_10kg").performClick()
+        composeTestRule.waitForIdle()
+        assertTrue(vm.priceDisplayOptions.value.includeTua)
+        assertEquals(PricingBaggageTier.BASICA_10KG, vm.priceDisplayOptions.value.baggageTier)
+
+        // Airline selector bar in Deals tab supports Viva Aerobus & TAR
+        composeTestRule.onNodeWithTag("deals_radar_list")
+            .performScrollToNode(hasTestTag("deals_airline_filters_row"))
+        composeTestRule.onNodeWithTag("deals_airline_filters_row")
+            .performScrollToNode(hasTestTag("deals_airline_vb"))
+        composeTestRule.onNodeWithTag("deals_airline_vb").performClick()
+        composeTestRule.waitForIdle()
+        assertEquals(Airline.VIVA_AEROBUS, vm.dealsRadarState.value.airlineFilter)
+        assertTrue(vm.dealsRadarState.value.deals.all { it.airline == Airline.VIVA_AEROBUS })
+    }
+
+    @Test
     fun `promo locator dialog shows primary one-way link and expands secondary options on click`() {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("deals_radar_list")
-            .performScrollToIndex(3)
+            .performScrollToIndex(4)
         composeTestRule.waitForIdle()
         composeTestRule.onAllNodes(androidx.compose.ui.test.hasText("Ver Promo"))[0]
             .performScrollTo()
@@ -146,17 +182,27 @@ class ExampleRobolectricTest {
                             "currencyCode": "MXN",
                             "flightType": "ONE_WAY",
                             "airline": { "iataCode": "Y4" },
-                            "lastSeen": { "value": 2, "unit": "hour" }
+                            "priceLastSeen": { "value": "2", "unit": "hours" }
                           },
                           {
                             "originAirportCode": "NLU",
                             "destinationAirportCode": "CUN",
                             "departureDate": "2026-11-18",
                             "totalPrice": 256.55,
+                            "formattedAdditionalFeesAmount": "310MXN",
                             "currencyCode": "MXN",
                             "flightType": "ONE_WAY",
                             "airline": { "iataCode": "VB" },
                             "lastSeen": { "value": 15, "unit": "minute" }
+                          },
+                          {
+                            "originAirportCode": "MEX",
+                            "destinationAirportCode": "LAX",
+                            "departureDate": "2026-11-19",
+                            "totalPrice": 1290,
+                            "currencyCode": "MXN",
+                            "flightType": "INTERNATIONAL",
+                            "airline": { "iataCode": "Y4" }
                           }
                         ]
                       },
@@ -184,8 +230,15 @@ class ExampleRobolectricTest {
             }</script></body></html>
         """.trimIndent()
 
-        val fares = AirTrfxParser.parseFaresFromHtml(sampleHtml, Airline.VOLARIS, "https://www.volaris.com/es-mx/vuelos-desde-aguascalientes-a-puerto-vallarta")
+        val result = AirTrfxParser.parsePageResultFromHtml(
+            sampleHtml,
+            Airline.VOLARIS,
+            "https://www.volaris.com/es-mx/vuelos-desde-aguascalientes-a-puerto-vallarta"
+        )
+        val fares = result.fares
+        // International MEX->LAX must be excluded (only 3 domestic fares remain)
         assertEquals(3, fares.size)
+        assertFalse(fares.any { it.destinationCode == "LAX" })
 
         val aguPvrNov17 = fares.first { it.originCode == "AGU" && it.departureDate.isoString == "2026-11-17" }
         assertEquals(Airline.VOLARIS, aguPvrNov17.airline)
@@ -198,9 +251,10 @@ class ExampleRobolectricTest {
         val nluCunViva = fares.first { it.originCode == "NLU" && it.destinationCode == "CUN" }
         assertEquals(Airline.VIVA_AEROBUS, nluCunViva.airline)
         assertEquals(257, nluCunViva.baseFareMxn) // ceil(256.55) == 257
+        assertEquals(310, nluCunViva.tuaMxn) // parsed from formattedAdditionalFeesAmount "310MXN"
 
         val repo = FlightDealsRepository(baseDate = TravelDate(2026, 11, 12))
-        repo.applyLiveFares(fares)
+        repo.applyLiveFares(fares, result.histogramWindows)
         assertEquals(3, repo.liveFareCount())
 
         val aguPvrOn17 = repo.getDealsForRoute("AGU", "PVR")
@@ -213,7 +267,7 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `airTrfxParser extracts Viva Aerobus additionalFeesAmount TUA and applies live route URL`() {
+    fun `airTrfxParser parses Viva formattedAdditionalFeesAmount and drops phantom dates where histogram returns 0`() {
         val vivaHtml = """
             <html><body>
             <script id="__NEXT_DATA__" type="application/json">{
@@ -224,10 +278,11 @@ class ExampleRobolectricTest {
                       "StandardFareModule:1": {
                         "fares": [
                           {
-                            "originAirportCode": "NLU",
+                            "originAirportCode": "MEX",
                             "destinationAirportCode": "CUN",
                             "departureDate": "2026-11-18",
                             "totalPrice": 256.55,
+                            "formattedAdditionalFeesAmount": "653MXN",
                             "currencyCode": "MXN",
                             "flightType": "ONE_WAY",
                             "airline": { "iataCode": "VB" },
@@ -249,7 +304,33 @@ class ExampleRobolectricTest {
                                     "currencyCode": "MXN"
                                   },
                                   "outboundFlight": {
-                                    "departureAirportIataCode": "NLU",
+                                    "departureAirportIataCode": "MEX",
+                                    "arrivalAirportIataCode": "CUN"
+                                  },
+                                  "airline": { "iataCode": "VB" }
+                                },
+                                {
+                                  "journeyType": "ONE_WAY",
+                                  "departureDate": "2026-11-21",
+                                  "priceSpecification": {
+                                    "totalPrice": 0,
+                                    "currencyCode": "MXN"
+                                  },
+                                  "outboundFlight": {
+                                    "departureAirportIataCode": "MEX",
+                                    "arrivalAirportIataCode": "CUN"
+                                  },
+                                  "airline": { "iataCode": "VB" }
+                                },
+                                {
+                                  "journeyType": "ONE_WAY",
+                                  "departureDate": "2026-11-22",
+                                  "priceSpecification": {
+                                    "totalPrice": 310.0,
+                                    "currencyCode": "MXN"
+                                  },
+                                  "outboundFlight": {
+                                    "departureAirportIataCode": "MEX",
                                     "arrivalAirportIataCode": "CUN"
                                   },
                                   "airline": { "iataCode": "VB" }
@@ -266,31 +347,39 @@ class ExampleRobolectricTest {
             }</script></body></html>
         """.trimIndent()
 
-        val vivaRouteUrl = "https://www.vivaaerobus.com/es-mx/vuelos-desde-felipe-angeles-cdmx-a-cancun"
-        val fares = AirTrfxParser.parseFaresFromHtml(vivaHtml, Airline.VIVA_AEROBUS, vivaRouteUrl)
-        assertEquals(2, fares.size)
+        val vivaRouteUrl = "https://www.vivaaerobus.com/es-mx/vuelos-desde-ciudad-de-mexico-a-cancun"
+        val pageResult = AirTrfxParser.parsePageResultFromHtml(vivaHtml, Airline.VIVA_AEROBUS, vivaRouteUrl)
+        assertEquals(3, pageResult.fares.size)
+        assertEquals(1, pageResult.histogramWindows.size)
+        assertEquals("2026-11-20", pageResult.histogramWindows.first().minDate.isoString)
+        assertEquals("2026-11-22", pageResult.histogramWindows.first().maxDate.isoString)
 
-        val nov20 = fares.first { it.departureDate.isoString == "2026-11-20" }
+        val nov20 = pageResult.fares.first { it.departureDate.isoString == "2026-11-20" }
         assertEquals(278, nov20.baseFareMxn)
         assertEquals(653, nov20.tuaMxn)
 
-        // Propagated route TUA from histogram to StandardFareModule entry on Nov 18
-        val nov18 = fares.first { it.departureDate.isoString == "2026-11-18" }
+        val nov18 = pageResult.fares.first { it.departureDate.isoString == "2026-11-18" }
         assertEquals(257, nov18.baseFareMxn)
         assertEquals(653, nov18.tuaMxn)
 
         val repo = FlightDealsRepository(baseDate = TravelDate(2026, 11, 12))
-        repo.applyLiveFares(fares)
+        repo.applyLiveFares(pageResult.fares, pageResult.histogramWindows)
 
-        val nluCunVivaNov20 = repo.getDealsForRoute("NLU", "CUN")
+        val mexCunVivaNov20 = repo.getDealsForRoute("MEX", "CUN")
             .first { it.airline == Airline.VIVA_AEROBUS && it.departureDate.isoString == "2026-11-20" && it.isLiveVerified }
-        assertEquals(278, nluCunVivaNov20.baseFareMxn)
-        assertEquals(653, nluCunVivaNov20.originTuaMxn)
-        assertEquals(278 + 653, nluCunVivaNov20.totalWithTuaMxn)
-        assertEquals(vivaRouteUrl, nluCunVivaNov20.liveBookingUrl)
+        assertEquals(278, mexCunVivaNov20.baseFareMxn)
+        assertEquals(653, mexCunVivaNov20.originTuaMxn)
+        assertEquals(278 + 653, mexCunVivaNov20.totalWithTuaMxn)
+        assertEquals(vivaRouteUrl, mexCunVivaNov20.liveBookingUrl)
 
-        // Unscraped date on same live Viva route must not undercut live minimum (257)
-        val unscrapedNov25 = repo.getDealsForRoute("NLU", "CUN")
+        // CRITICAL: Nov 21 fell inside [2026-11-20..2026-11-22] histogram window with totalPrice == 0,
+        // so the phantom baseCatalog deal for Viva on Nov 21 MUST be suppressed!
+        val phantomNov21 = repo.getDealsForRoute("MEX", "CUN")
+            .filter { it.airline == Airline.VIVA_AEROBUS && it.departureDate.isoString == "2026-11-21" }
+        assertTrue("Expected phantom Viva deal on unavailable histogram day to be dropped", phantomNov21.isEmpty())
+
+        // Date outside scraped window must not undercut live minimum (257)
+        val unscrapedNov25 = repo.getDealsForRoute("MEX", "CUN")
             .first { it.airline == Airline.VIVA_AEROBUS && it.departureDate.isoString == "2026-11-25" }
         assertTrue(unscrapedNov25.baseFareMxn >= 257 + 120)
         assertEquals(653, unscrapedNov25.originTuaMxn)
@@ -335,7 +424,7 @@ class ExampleRobolectricTest {
     fun `opening any booking link shows 5 second notice with promo date and correction warning`() {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("deals_radar_list")
-            .performScrollToIndex(3)
+            .performScrollToIndex(4)
         composeTestRule.waitForIdle()
         composeTestRule.onAllNodes(androidx.compose.ui.test.hasText("Ver Promo"))[0]
             .performScrollTo()

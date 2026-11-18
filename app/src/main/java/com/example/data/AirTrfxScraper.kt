@@ -31,10 +31,30 @@ data class ScrapedFare(
     val sourceUrl: String? = null
 )
 
+/**
+ * Records the date range inspected in a live dailyHistogram for an (airline, origin, destination).
+ * Days inside this window that do NOT have a ScrapedFare (because AirTrfx returned totalPrice == 0)
+ * are confirmed unavailable/without promo so the repository can suppress phantom catalog estimates.
+ */
+data class RouteHistogramWindow(
+    val airline: Airline,
+    val originCode: String,
+    val destinationCode: String,
+    val minDate: TravelDate,
+    val maxDate: TravelDate
+)
+
+data class ScrapedPageResult(
+    val fares: List<ScrapedFare> = emptyList(),
+    val histogramWindows: List<RouteHistogramWindow> = emptyList()
+)
+
 object AirTrfxCitySlugs {
+    // 100% aeropuertos nacionales de México
     val volarisSlugs: Map<String, String> = mapOf(
         "NLU" to "felipe-%C3%A1ngeles-cdmx",
         "MEX" to "mexico-df",
+        "TLC" to "toluca",
         "AGU" to "aguascalientes",
         "GDL" to "guadalajara",
         "MTY" to "monterrey",
@@ -47,26 +67,37 @@ object AirTrfxCitySlugs {
         "MZT" to "mazatlan",
         "OAX" to "oaxaca-mx",
         "HUX" to "huatulco",
+        "PXM" to "puerto-escondido",
+        "ACA" to "acapulco",
         "LAP" to "la-paz",
         "CZM" to "cozumel",
+        "ZLO" to "manzanillo",
+        "LTO" to "loreto",
+        "CTM" to "chetumal",
+        "VER" to "veracruz",
         "TGZ" to "tuxtla-gutierrez",
         "BJX" to "leon",
         "QRO" to "queretaro",
         "ZIH" to "ixtapa-zihuatanejo",
-        "LAX" to "los-angeles",
-        "ORD" to "chicago",
-        "MIA" to "miami",
-        "IAH" to "houston",
-        "LAS" to "las-vegas",
-        "MCO" to "orlando",
-        "DFW" to "dallas",
-        "SJO" to "san-jose-cr",
-        "GUA" to "ciudad-de-guatemala"
+        "PBC" to "puebla",
+        "MLM" to "morelia",
+        "SLP" to "san-luis-potosi",
+        "HMO" to "hermosillo",
+        "CUL" to "culiacan",
+        "CUU" to "chihuahua",
+        "CJS" to "ciudad-juarez",
+        "VSA" to "villahermosa",
+        "TAM" to "tampico",
+        "TRC" to "torreon",
+        "LMM" to "los-mochis",
+        "DGO" to "durango",
+        "ZCL" to "zacatecas"
     )
 
     val vivaSlugs: Map<String, String> = mapOf(
         "NLU" to "felipe-angeles-cdmx",
         "MEX" to "ciudad-de-mexico",
+        "TLC" to "toluca",
         "AGU" to "aguascalientes",
         "GDL" to "guadalajara",
         "MTY" to "monterrey",
@@ -79,21 +110,31 @@ object AirTrfxCitySlugs {
         "MZT" to "mazatlan",
         "OAX" to "oaxaca",
         "HUX" to "huatulco",
+        "PXM" to "puerto-escondido",
+        "ACA" to "acapulco",
         "LAP" to "la-paz",
         "CZM" to "cozumel",
+        "ZLO" to "manzanillo",
+        "LTO" to "loreto",
+        "CTM" to "chetumal",
+        "VER" to "veracruz",
         "TGZ" to "tuxtla-gutierrez",
         "BJX" to "leon",
         "QRO" to "queretaro",
         "ZIH" to "ixtapa-zihuatanejo",
-        "LAX" to "los-angeles",
-        "ORD" to "chicago",
-        "MIA" to "miami",
-        "IAH" to "houston",
-        "LAS" to "las-vegas",
-        "MCO" to "orlando",
-        "DFW" to "dallas",
-        "JFK" to "nueva-york-jfk",
-        "BOG" to "bogota"
+        "PBC" to "puebla",
+        "MLM" to "morelia",
+        "SLP" to "san-luis-potosi",
+        "HMO" to "hermosillo",
+        "CUL" to "culiacan",
+        "CUU" to "chihuahua",
+        "CJS" to "ciudad-juarez",
+        "VSA" to "villahermosa",
+        "TAM" to "tampico",
+        "TRC" to "torreon",
+        "LMM" to "los-mochis",
+        "DGO" to "durango",
+        "ZCL" to "zacatecas"
     )
 
     fun volarisOriginUrl(originCode: String): String? {
@@ -134,17 +175,31 @@ object AirTrfxParser {
         html: String,
         defaultAirline: Airline,
         sourceUrl: String? = null
-    ): List<ScrapedFare> {
-        val jsonText = extractNextDataJson(html) ?: return emptyList()
-        return parseFaresFromNextDataJson(jsonText, defaultAirline, sourceUrl)
+    ): List<ScrapedFare> = parsePageResultFromHtml(html, defaultAirline, sourceUrl).fares
+
+    fun parsePageResultFromHtml(
+        html: String,
+        defaultAirline: Airline,
+        sourceUrl: String? = null
+    ): ScrapedPageResult {
+        val jsonText = extractNextDataJson(html) ?: return ScrapedPageResult()
+        return parsePageResultFromNextDataJson(jsonText, defaultAirline, sourceUrl)
     }
 
     fun parseFaresFromNextDataJson(
         jsonText: String,
         defaultAirline: Airline,
         sourceUrl: String? = null
-    ): List<ScrapedFare> {
+    ): List<ScrapedFare> = parsePageResultFromNextDataJson(jsonText, defaultAirline, sourceUrl).fares
+
+    fun parsePageResultFromNextDataJson(
+        jsonText: String,
+        defaultAirline: Airline,
+        sourceUrl: String? = null
+    ): ScrapedPageResult {
         val collected = LinkedHashMap<String, ScrapedFare>()
+        val histogramDateRanges = LinkedHashMap<String, Pair<TravelDate, TravelDate>>()
+        val histogramMeta = HashMap<String, Triple<Airline, String, String>>()
         try {
             val root = JSONObject(jsonText)
             val apolloData = root
@@ -152,7 +207,7 @@ object AirTrfxParser {
                 ?.optJSONObject("pageProps")
                 ?.optJSONObject("apolloState")
                 ?.optJSONObject("data")
-                ?: return emptyList()
+                ?: return ScrapedPageResult()
 
             val keys = apolloData.keys()
             while (keys.hasNext()) {
@@ -172,10 +227,26 @@ object AirTrfxParser {
                             ?.optJSONObject("initialState")
                             ?: continue
                         initState.optJSONArray("dailyHistogram")?.let {
-                            parseHistogramArray(it, defaultAirline, sourceUrl, collected)
+                            parseHistogramArray(
+                                arr = it,
+                                defaultAirline = defaultAirline,
+                                sourceUrl = sourceUrl,
+                                out = collected,
+                                recordWindow = true,
+                                histogramDateRanges = histogramDateRanges,
+                                histogramMeta = histogramMeta
+                            )
                         }
                         initState.optJSONArray("monthlyHistogram")?.let {
-                            parseHistogramArray(it, defaultAirline, sourceUrl, collected)
+                            parseHistogramArray(
+                                arr = it,
+                                defaultAirline = defaultAirline,
+                                sourceUrl = sourceUrl,
+                                out = collected,
+                                recordWindow = false,
+                                histogramDateRanges = histogramDateRanges,
+                                histogramMeta = histogramMeta
+                            )
                         }
                     }
 
@@ -194,23 +265,38 @@ object AirTrfxParser {
             // Gracefully return whatever fares were parsed before malformed section
         }
 
-        // Propagate route-level TUA (e.g. Viva Aerobus additionalFeesAmount) to sibling entries lacking TUA
+        // Propagate route-level TUA (e.g. Viva Aerobus additionalFeesAmount / formattedAdditionalFeesAmount)
         val routeTuaMap = HashMap<String, Int>()
+        val originTuaMap = HashMap<String, Int>()
         for (fare in collected.values) {
             if (fare.tuaMxn != null) {
                 val rKey = "${fare.airline.iataCode}_${fare.originCode}_${fare.destinationCode}"
                 routeTuaMap.putIfAbsent(rKey, fare.tuaMxn)
+                originTuaMap.putIfAbsent("${fare.airline.iataCode}_${fare.originCode}", fare.tuaMxn)
             }
         }
-        return collected.values.map { fare ->
+        val finalFares = collected.values.map { fare ->
             if (fare.tuaMxn != null) {
                 fare
             } else {
                 val rKey = "${fare.airline.iataCode}_${fare.originCode}_${fare.destinationCode}"
-                val routeTua = routeTuaMap[rKey]
-                if (routeTua != null) fare.copy(tuaMxn = routeTua) else fare
+                val resolved = routeTuaMap[rKey] ?: originTuaMap["${fare.airline.iataCode}_${fare.originCode}"]
+                if (resolved != null) fare.copy(tuaMxn = resolved) else fare
             }
         }
+
+        val windows = histogramDateRanges.mapNotNull { (routeKey, range) ->
+            val meta = histogramMeta[routeKey] ?: return@mapNotNull null
+            RouteHistogramWindow(
+                airline = meta.first,
+                originCode = meta.second,
+                destinationCode = meta.third,
+                minDate = range.first,
+                maxDate = range.second
+            )
+        }
+
+        return ScrapedPageResult(fares = finalFares, histogramWindows = windows)
     }
 
     private fun parseStandardFaresArray(
@@ -232,24 +318,31 @@ object AirTrfxParser {
         out: MutableMap<String, ScrapedFare>
     ) {
         val flightType = item.optString("flightType", "")
-        if (flightType.isNotEmpty() && !flightType.equals("ONE_WAY", ignoreCase = true)) return
+        if (flightType.equals("INTERNATIONAL", ignoreCase = true)) return
+        if (flightType.isNotEmpty() &&
+            !flightType.equals("ONE_WAY", ignoreCase = true) &&
+            !flightType.equals("DOMESTIC", ignoreCase = true)
+        ) return
+
+        val journeyType = item.optString("journeyType", "")
+        if (journeyType.isNotEmpty() && !journeyType.equals("ONE_WAY", ignoreCase = true)) return
 
         val currency = item.optString("currencyCode", "MXN")
         if (currency.isNotEmpty() && !currency.equals("MXN", ignoreCase = true)) return
 
-        val origin = normalizeCode(item.optString("originAirportCode", "")) ?: return
-        val dest = normalizeCode(item.optString("destinationAirportCode", "")) ?: return
+        val origin = normalizeDomesticCode(item.optString("originAirportCode", "")) ?: return
+        val dest = normalizeDomesticCode(item.optString("destinationAirportCode", "")) ?: return
+        if (origin == dest) return
         val depDate = TravelDate.parseIso(item.optString("departureDate", "")) ?: return
 
         val rawPrice = item.optDouble("totalPrice", Double.NaN)
         if (rawPrice.isNaN() || rawPrice <= 0.0) return
         val priceMxn = ceil(rawPrice).toInt()
 
-        val rawFees = item.optDouble("additionalFeesAmount", Double.NaN)
-        val feesMxn = if (!rawFees.isNaN() && rawFees > 0.0) ceil(rawFees).toInt() else null
-
+        val feesMxn = extractFeeMxn(item)
         val airline = resolveAirline(item.optJSONObject("airline")?.optString("iataCode"), defaultAirline)
-        val lastSeen = parseLastSeen(item.optJSONObject("lastSeen"))
+        val lastSeen = parseLastSeen(item.optJSONObject("lastSeen") ?: item.optJSONObject("priceLastSeen"))
+
         putIfCheaper(
             out,
             ScrapedFare(
@@ -269,12 +362,33 @@ object AirTrfxParser {
         arr: JSONArray,
         defaultAirline: Airline,
         sourceUrl: String?,
-        out: MutableMap<String, ScrapedFare>
+        out: MutableMap<String, ScrapedFare>,
+        recordWindow: Boolean,
+        histogramDateRanges: MutableMap<String, Pair<TravelDate, TravelDate>>,
+        histogramMeta: MutableMap<String, Triple<Airline, String, String>>
     ) {
         for (i in 0 until arr.length()) {
             val item = arr.optJSONObject(i) ?: continue
             val journeyType = item.optString("journeyType", "")
             if (journeyType.isNotEmpty() && !journeyType.equals("ONE_WAY", ignoreCase = true)) continue
+
+            val outbound = item.optJSONObject("outboundFlight") ?: continue
+            val origin = normalizeDomesticCode(outbound.optString("departureAirportIataCode", "")) ?: continue
+            val dest = normalizeDomesticCode(outbound.optString("arrivalAirportIataCode", "")) ?: continue
+            if (origin == dest) continue
+            val depDate = TravelDate.parseIso(item.optString("departureDate", "")) ?: continue
+            val airline = resolveAirline(item.optJSONObject("airline")?.optString("iataCode"), defaultAirline)
+
+            if (recordWindow) {
+                val routeKey = "${airline.iataCode}_${origin}_${dest}"
+                histogramMeta[routeKey] = Triple(airline, origin, dest)
+                val existing = histogramDateRanges[routeKey]
+                histogramDateRanges[routeKey] = if (existing == null) {
+                    depDate to depDate
+                } else {
+                    minOf(existing.first, depDate) to maxOf(existing.second, depDate)
+                }
+            }
 
             val priceSpec = item.optJSONObject("priceSpecification") ?: continue
             val currency = priceSpec.optString("currencyCode", "MXN")
@@ -284,16 +398,8 @@ object AirTrfxParser {
             if (rawPrice.isNaN() || rawPrice <= 0.0) continue
             val priceMxn = ceil(rawPrice).toInt()
 
-            val rawFees = priceSpec.optDouble("additionalFeesAmount", Double.NaN)
-            val feesMxn = if (!rawFees.isNaN() && rawFees > 0.0) ceil(rawFees).toInt() else null
-
-            val outbound = item.optJSONObject("outboundFlight") ?: continue
-            val origin = normalizeCode(outbound.optString("departureAirportIataCode", "")) ?: continue
-            val dest = normalizeCode(outbound.optString("arrivalAirportIataCode", "")) ?: continue
-            val depDate = TravelDate.parseIso(item.optString("departureDate", "")) ?: continue
-
-            val airline = resolveAirline(item.optJSONObject("airline")?.optString("iataCode"), defaultAirline)
-            val lastSeen = parseLastSeen(item.optJSONObject("lastSeen"))
+            val feesMxn = extractFeeMxn(priceSpec) ?: extractFeeMxn(item)
+            val lastSeen = parseLastSeen(item.optJSONObject("lastSeen") ?: item.optJSONObject("priceLastSeen"))
 
             putIfCheaper(
                 out,
@@ -311,18 +417,40 @@ object AirTrfxParser {
         }
     }
 
+    internal fun extractFeeMxn(obj: JSONObject): Int? {
+        val rawFees = obj.optDouble("additionalFeesAmount", Double.NaN)
+        if (!rawFees.isNaN() && rawFees > 0.0) {
+            return ceil(rawFees).toInt()
+        }
+        val formatted = obj.optString("formattedAdditionalFeesAmount", "")
+        return parseFormattedFeeMxn(formatted)
+    }
+
+    internal fun parseFormattedFeeMxn(raw: String?): Int? {
+        if (raw.isNullOrBlank()) return null
+        // Examples from live Viva Aerobus JSON: "653MXN", "1,272MXN", "$653.40 MXN"
+        val cleaned = raw.replace(",", "").trim()
+        val match = Regex("""(\d+(?:\.\d+)?)""").find(cleaned) ?: return null
+        val value = match.groupValues[1].toDoubleOrNull() ?: return null
+        return if (value > 0.0) ceil(value).toInt() else null
+    }
+
     private fun parseLastSeen(lastSeenObj: JSONObject?): String? {
         if (lastSeenObj == null) return null
-        val value = lastSeenObj.optInt("value", -1)
-        val unit = lastSeenObj.optString("unit", "")
+        val rawInt = lastSeenObj.optInt("value", -1)
+        val value = if (rawInt > 0) {
+            rawInt
+        } else {
+            lastSeenObj.optString("value", "").trim().toIntOrNull() ?: -1
+        }
+        val unit = lastSeenObj.optString("unit", "").trim().lowercase()
         if (value <= 0 || unit.isBlank()) return null
-        val unitEs = when (unit.lowercase()) {
-            "minute" -> if (value == 1) "hace 1 min" else "hace $value min"
-            "hour" -> if (value == 1) "hace 1 h" else "hace $value h"
-            "day" -> if (value == 1) "hace 1 día" else "hace $value días"
+        return when {
+            unit.startsWith("min") -> if (value == 1) "hace 1 min" else "hace $value min"
+            unit.startsWith("hour") || unit.startsWith("hora") -> if (value == 1) "hace 1 h" else "hace $value h"
+            unit.startsWith("day") || unit.startsWith("d") -> if (value == 1) "hace 1 día" else "hace $value días"
             else -> null
         }
-        return unitEs
     }
 
     private fun resolveAirline(iata: String?, fallback: Airline): Airline {
@@ -331,16 +459,17 @@ object AirTrfxParser {
             "VB" -> Airline.VIVA_AEROBUS
             "AM" -> Airline.AEROMEXICO
             "MX" -> Airline.MEXICANA
+            "YQ" -> Airline.TAR
+            "ZV" -> Airline.AERUS
+            "UJ" -> Airline.MAGNICHARTERS
             else -> fallback
         }
     }
 
-    private fun normalizeCode(raw: String): String? {
+    private fun normalizeDomesticCode(raw: String): String? {
         val clean = raw.trim().uppercase()
         if (clean.length != 3) return null
-        // Map Chicago Midway (MDW) -> ORD for UI airport matching when Volaris lists Chicago Midway
-        val mapped = if (clean == "MDW") "ORD" else clean
-        return if (AirportData.findByCode(mapped) != null) mapped else null
+        return if (AirportData.isDomesticMexicanAirport(clean)) clean else null
     }
 
     private fun putIfCheaper(out: MutableMap<String, ScrapedFare>, fare: ScrapedFare) {
@@ -362,38 +491,46 @@ class LiveAirlineScraper {
 
     private data class CacheEntry(
         val fetchedAtMs: Long,
-        val fares: List<ScrapedFare>
+        val result: ScrapedPageResult
     )
 
     private val pageCache = ConcurrentHashMap<String, CacheEntry>()
     private val fetchSemaphore = Semaphore(4)
 
-    suspend fun fetchGlobalPromos(forceRefresh: Boolean = false): List<ScrapedFare> = coroutineScope {
+    suspend fun fetchGlobalPromos(forceRefresh: Boolean = false): List<ScrapedFare> =
+        fetchGlobalPromosResult(forceRefresh).fares
+
+    suspend fun fetchGlobalPromosResult(forceRefresh: Boolean = false): ScrapedPageResult = coroutineScope {
         val tasks = listOf(
             async { fetchPage(VOLARIS_OFFERS_URL, Airline.VOLARIS, forceRefresh) },
             async { fetchPage(VIVA_MAIN_FLIGHTS_URL, Airline.VIVA_AEROBUS, forceRefresh) }
         )
-        tasks.awaitAll().flatten()
+        mergePageResults(tasks.awaitAll())
     }
 
     suspend fun fetchOriginDeals(
         originCode: String,
         forceRefresh: Boolean = false
-    ): List<ScrapedFare> = coroutineScope {
-        val o = originCode.uppercase()
-        val requests = mutableListOf<Pair<String, Airline>>()
+    ): List<ScrapedFare> = fetchOriginDealsResult(originCode, forceRefresh).fares
 
+    suspend fun fetchOriginDealsResult(
+        originCode: String,
+        forceRefresh: Boolean = false
+    ): ScrapedPageResult = coroutineScope {
+        val o = originCode.uppercase()
+        if (!AirportData.isDomesticMexicanAirport(o)) return@coroutineScope ScrapedPageResult()
+
+        val requests = mutableListOf<Pair<String, Airline>>()
         AirTrfxCitySlugs.volarisOriginUrl(o)?.let { requests.add(it to Airline.VOLARIS) }
         AirTrfxCitySlugs.vivaOriginUrl(o)?.let { requests.add(it to Airline.VIVA_AEROBUS) }
 
-        // Fetch 30-day & 5-month route histograms for both Volaris and Viva Aerobus on key routes
         val topDests = when (o) {
-            "AGU" -> listOf("PVR", "CUN", "TIJ", "MTY")
-            "NLU" -> listOf("CUN", "PVR", "GDL", "MTY")
-            "MEX" -> listOf("CUN", "PVR", "GDL", "MTY")
-            "GDL" -> listOf("PVR", "CUN", "MTY", "TIJ")
-            "MTY" -> listOf("CUN", "PVR", "GDL", "MEX")
-            else -> listOf("CUN", "PVR", "MEX", "MTY")
+            "AGU" -> listOf("PVR", "CUN", "TIJ", "MTY", "MEX")
+            "NLU" -> listOf("CUN", "PVR", "SJD", "TQO", "MTY", "GDL")
+            "MEX" -> listOf("CUN", "PVR", "SJD", "HUX", "MTY", "GDL")
+            "GDL" -> listOf("PVR", "CUN", "SJD", "MTY", "TIJ")
+            "MTY" -> listOf("CUN", "PVR", "SJD", "MZT", "MEX")
+            else -> listOf("CUN", "PVR", "SJD", "MEX", "MTY")
         }.filter { it != o }
 
         topDests.forEach { d ->
@@ -401,46 +538,61 @@ class LiveAirlineScraper {
             AirTrfxCitySlugs.vivaRouteUrl(o, d)?.let { requests.add(it to Airline.VIVA_AEROBUS) }
         }
 
-        requests.distinctBy { it.first }
+        val results = requests.distinctBy { it.first }
             .map { (url, airline) -> async { fetchPage(url, airline, forceRefresh) } }
             .awaitAll()
-            .flatten()
+        mergePageResults(results)
     }
 
     suspend fun fetchRouteHistogram(
         originCode: String,
         destinationCode: String,
         forceRefresh: Boolean = false
-    ): List<ScrapedFare> = coroutineScope {
+    ): List<ScrapedFare> = fetchRouteHistogramResult(originCode, destinationCode, forceRefresh).fares
+
+    suspend fun fetchRouteHistogramResult(
+        originCode: String,
+        destinationCode: String,
+        forceRefresh: Boolean = false
+    ): ScrapedPageResult = coroutineScope {
         val o = originCode.uppercase()
         val d = destinationCode.uppercase()
+        if (!AirportData.isDomesticMexicanAirport(o) || !AirportData.isDomesticMexicanAirport(d)) {
+            return@coroutineScope ScrapedPageResult()
+        }
         val requests = buildList {
             AirTrfxCitySlugs.volarisRouteUrl(o, d)?.let { add(it to Airline.VOLARIS) }
             AirTrfxCitySlugs.vivaRouteUrl(o, d)?.let { add(it to Airline.VIVA_AEROBUS) }
         }
-        requests
+        val results = requests
             .map { (url, airline) -> async { fetchPage(url, airline, forceRefresh) } }
             .awaitAll()
-            .flatten()
+        mergePageResults(results)
+    }
+
+    private fun mergePageResults(results: List<ScrapedPageResult>): ScrapedPageResult {
+        val allFares = results.flatMap { it.fares }
+        val allWindows = results.flatMap { it.histogramWindows }
+        return ScrapedPageResult(fares = allFares, histogramWindows = allWindows)
     }
 
     private suspend fun fetchPage(
         url: String,
         airline: Airline,
         forceRefresh: Boolean
-    ): List<ScrapedFare> = fetchSemaphore.withPermit {
+    ): ScrapedPageResult = fetchSemaphore.withPermit {
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
             if (!forceRefresh) {
                 val cached = pageCache[url]
                 if (cached != null && (now - cached.fetchedAtMs) < CACHE_TTL_MS) {
-                    return@withContext cached.fares
+                    return@withContext cached.result
                 }
             }
 
-            val jsonText = downloadNextDataJson(url) ?: return@withContext emptyList()
-            val parsed = AirTrfxParser.parseFaresFromNextDataJson(jsonText, airline, sourceUrl = url)
-            if (parsed.isNotEmpty()) {
+            val jsonText = downloadNextDataJson(url) ?: return@withContext ScrapedPageResult()
+            val parsed = AirTrfxParser.parsePageResultFromNextDataJson(jsonText, airline, sourceUrl = url)
+            if (parsed.fares.isNotEmpty() || parsed.histogramWindows.isNotEmpty()) {
                 pageCache[url] = CacheEntry(now, parsed)
             }
             parsed

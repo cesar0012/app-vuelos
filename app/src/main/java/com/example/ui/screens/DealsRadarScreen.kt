@@ -18,12 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,10 +44,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.model.Airline
 import com.example.model.FlightDeal
 import com.example.model.TravelDate
 import com.example.ui.components.FlightDealCard
@@ -64,6 +68,7 @@ fun DealsRadarScreen(
     liveSyncState: LiveSyncState = LiveSyncState(),
     onRefreshLive: () -> Unit = {},
     onQuickFilterSelected: (DealQuickFilter) -> Unit,
+    onAirlineFilterSelected: (Airline?) -> Unit = {},
     onMaxBaseFareChange: (Float) -> Unit,
     onSortOrderChange: (SortOrder) -> Unit,
     onOpenCalculator: (FlightDeal) -> Unit,
@@ -72,7 +77,7 @@ fun DealsRadarScreen(
     modifier: Modifier = Modifier
 ) {
     val colors = AppTheme.colors
-    val lowestDealFare = state.deals.minOfOrNull { it.baseFareMxn }
+    val lowestEffectiveFare = state.deals.minOfOrNull { it.effectivePriceMxn(state.priceOptions) }
     val groupedByDate = remember(state.deals, state.sortOrder) {
         if (state.sortOrder == SortOrder.DATE) {
             state.deals.groupBy { it.departureDate }
@@ -117,7 +122,7 @@ fun DealsRadarScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "RADAR DE OFERTAS FLASH",
+                                text = "RADAR NACIONAL MÉXICO",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = colors.neonPink
                             )
@@ -170,23 +175,51 @@ fun DealsRadarScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = if (lowestDealFare != null) {
-                            "Vuelos desde $$lowestDealFare MXN base"
+                        text = if (lowestEffectiveFare != null) {
+                            "Desde $$lowestEffectiveFare MXN (${state.priceOptions.shortSummaryLabel})"
                         } else {
-                            "Explora tarifas promocionales"
+                            "Explora vuelos nacionales en México"
                         },
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = colors.textPrimary
+                        style = MaterialTheme.typography.titleLarge,
+                        color = colors.textPrimary,
+                        fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${state.deals.size} tarifas activas · ${liveSyncState.statusMessage}",
+                        text = "${state.deals.size} vuelos · ${liveSyncState.statusMessage}",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = colors.cyanTint,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, colors.neonCyan.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = colors.neonCyan,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Volaris y Viva publican Tarifa Zero (sin maleta ni TUA). El precio mostrado ya aplica tus filtros de arriba.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.textPrimary
+                            )
+                        }
+                    }
                 }
             }
         }
 
+        // Quick category filters
         item(key = "quick_filters") {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -216,6 +249,69 @@ fun DealsRadarScreen(
             }
         }
 
+        // Dedicated 7 Mexican Airlines filter bar
+        item(key = "airline_filters") {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("deals_airline_filters_row")
+            ) {
+                item(key = "deals_airline_all") {
+                    val selected = state.airlineFilter == null
+                    FilterChip(
+                        selected = selected,
+                        onClick = { onAirlineFilterSelected(null) },
+                        label = { Text("Todas las aerolíneas (7)") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = colors.cyanTint,
+                            selectedLabelColor = colors.neonCyan,
+                            containerColor = colors.cardElevated,
+                            labelColor = colors.textSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selected,
+                            selectedBorderColor = colors.neonCyan,
+                            borderColor = colors.cardBorder
+                        ),
+                        modifier = Modifier.testTag("deals_airline_all")
+                    )
+                }
+                items(Airline.entries, key = { it.iataCode }) { airline ->
+                    val selected = state.airlineFilter == airline
+                    FilterChip(
+                        selected = selected,
+                        onClick = {
+                            onAirlineFilterSelected(if (selected) null else airline)
+                        },
+                        leadingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(airline.brandColor)
+                            )
+                        },
+                        label = { Text(airline.displayName) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = airline.brandColor.copy(alpha = if (colors.isDark) 0.24f else 0.14f),
+                            selectedLabelColor = colors.textPrimary,
+                            containerColor = colors.cardElevated,
+                            labelColor = colors.textSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selected,
+                            selectedBorderColor = airline.brandColor,
+                            borderColor = colors.cardBorder
+                        ),
+                        modifier = Modifier.testTag("deals_airline_${airline.iataCode.lowercase()}")
+                    )
+                }
+            }
+        }
+
         item(key = "slider_and_sort") {
             Surface(
                 color = colors.cardElevated,
@@ -230,7 +326,7 @@ fun DealsRadarScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Tarifa base máxima",
+                            text = "Máx. (${state.priceOptions.shortSummaryLabel})",
                             style = MaterialTheme.typography.labelLarge,
                             color = colors.textPrimary
                         )
@@ -242,9 +338,9 @@ fun DealsRadarScreen(
                         )
                     }
                     Slider(
-                        value = state.maxBaseFareMxn,
+                        value = state.maxBaseFareMxn.coerceIn(300f, 8500f),
                         onValueChange = onMaxBaseFareChange,
-                        valueRange = 199f..6500f,
+                        valueRange = 300f..8500f,
                         colors = SliderDefaults.colors(
                             thumbColor = colors.neonCyan,
                             activeTrackColor = colors.neonCyan,
@@ -292,7 +388,7 @@ fun DealsRadarScreen(
         if (state.deals.isEmpty()) {
             item(key = "empty_deals") {
                 EmptyDealsBox(
-                    message = "No hay ofertas bajo $${state.maxBaseFareMxn.roundToInt()} MXN con los filtros actuales. Sube el presupuesto o cambia los aeropuertos arriba."
+                    message = "No hay vuelos nacionales bajo $${state.maxBaseFareMxn.roundToInt()} MXN (${state.priceOptions.shortSummaryLabel}) con los filtros actuales. Sube el presupuesto o cambia aerolínea/aeropuertos."
                 )
             }
         } else if (state.sortOrder == SortOrder.DATE) {
@@ -307,6 +403,7 @@ fun DealsRadarScreen(
                     val compKey = "${deal.originCode}-${deal.destinationCode}-${deal.departureDate.isoString}"
                     FlightDealCard(
                         deal = deal,
+                        priceOptions = state.priceOptions,
                         isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                         onOpenCalculator = { onOpenCalculator(deal) },
                         onVerifyGoogleFlights = {
@@ -316,7 +413,9 @@ fun DealsRadarScreen(
                                 destinationCode = deal.destinationCode,
                                 liveBookingUrl = deal.liveBookingUrl
                             )
-                            onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
+                            onRequestExternalRedirect(
+                                BookingLinkHelper.createRedirectRequest(deal, url, priceOptions = state.priceOptions)
+                            )
                         },
                         onOpenPromoLocator = { onOpenPromoLocator(deal) }
                     )
@@ -327,6 +426,7 @@ fun DealsRadarScreen(
                 val compKey = "${deal.originCode}-${deal.destinationCode}-${deal.departureDate.isoString}"
                 FlightDealCard(
                     deal = deal,
+                    priceOptions = state.priceOptions,
                     isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                     onOpenCalculator = { onOpenCalculator(deal) },
                     onVerifyGoogleFlights = {
@@ -336,7 +436,9 @@ fun DealsRadarScreen(
                             destinationCode = deal.destinationCode,
                             liveBookingUrl = deal.liveBookingUrl
                         )
-                        onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
+                        onRequestExternalRedirect(
+                            BookingLinkHelper.createRedirectRequest(deal, url, priceOptions = state.priceOptions)
+                        )
                     },
                     onOpenPromoLocator = { onOpenPromoLocator(deal) }
                 )

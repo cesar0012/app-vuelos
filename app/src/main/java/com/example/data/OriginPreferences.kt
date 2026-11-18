@@ -2,6 +2,8 @@ package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.model.AirportData
+import com.example.model.PricingBaggageTier
 
 class OriginPreferences(context: Context) {
     private val prefs: SharedPreferences =
@@ -10,23 +12,35 @@ class OriginPreferences(context: Context) {
     fun getSelectedOrigins(): List<String> {
         val raw = prefs.getString(KEY_SELECTED_ORIGINS, null)
         if (raw.isNullOrBlank()) return listOf("MEX", "NLU")
-        return raw.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }.distinct()
-            .ifEmpty { listOf("MEX") }
+        return raw.split(",")
+            .map { it.trim().uppercase() }
+            .filter { AirportData.isDomesticMexicanAirport(it) }
+            .distinct()
+            .ifEmpty { listOf("MEX", "NLU") }
     }
 
     fun saveSelectedOrigins(codes: List<String>) {
-        val clean = codes.map { it.trim().uppercase() }.filter { it.isNotEmpty() }.distinct()
+        val clean = codes
+            .map { it.trim().uppercase() }
+            .filter { AirportData.isDomesticMexicanAirport(it) }
+            .distinct()
         prefs.edit().putString(KEY_SELECTED_ORIGINS, clean.joinToString(",")).apply()
     }
 
     fun getSelectedDestinations(): List<String> {
         val raw = prefs.getString(KEY_SELECTED_DESTINATIONS, null)
         if (raw.isNullOrBlank()) return emptyList()
-        return raw.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }.distinct()
+        return raw.split(",")
+            .map { it.trim().uppercase() }
+            .filter { AirportData.isDomesticMexicanAirport(it) }
+            .distinct()
     }
 
     fun saveSelectedDestinations(codes: List<String>) {
-        val clean = codes.map { it.trim().uppercase() }.filter { it.isNotEmpty() }.distinct()
+        val clean = codes
+            .map { it.trim().uppercase() }
+            .filter { AirportData.isDomesticMexicanAirport(it) }
+            .distinct()
         prefs.edit().putString(KEY_SELECTED_DESTINATIONS, clean.joinToString(",")).apply()
     }
 
@@ -51,6 +65,22 @@ class OriginPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_DARK_MODE_ENABLED, enabled).commit()
     }
 
+    fun isIncludeTua(): Boolean =
+        prefs.getBoolean(KEY_INCLUDE_TUA, true)
+
+    fun saveIncludeTua(include: Boolean) {
+        prefs.edit().putBoolean(KEY_INCLUDE_TUA, include).commit()
+    }
+
+    fun getBaggageTier(): PricingBaggageTier {
+        val raw = prefs.getString(KEY_BAGGAGE_TIER, null) ?: return PricingBaggageTier.BASICA_10KG
+        return PricingBaggageTier.entries.firstOrNull { it.name == raw } ?: PricingBaggageTier.BASICA_10KG
+    }
+
+    fun saveBaggageTier(tier: PricingBaggageTier) {
+        prefs.edit().putString(KEY_BAGGAGE_TIER, tier.name).commit()
+    }
+
     companion object {
         private const val PREFS_NAME = "cheap_travel_prefs"
         private const val KEY_SELECTED_ORIGINS = "selected_origins"
@@ -58,5 +88,7 @@ class OriginPreferences(context: Context) {
         private const val KEY_FIRST_LAUNCH_GPS_DONE = "first_launch_gps_done"
         private const val KEY_DETECTED_AIRPORT = "detected_airport_code"
         private const val KEY_DARK_MODE_ENABLED = "dark_mode_enabled"
+        private const val KEY_INCLUDE_TUA = "include_tua"
+        private const val KEY_BAGGAGE_TIER = "baggage_tier"
     }
 }

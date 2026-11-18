@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import com.example.model.Airline
 import com.example.model.AirportData
 import com.example.model.FlightDeal
+import com.example.model.PriceDisplayOptions
 import com.example.model.TimePeriod
 import com.example.model.TravelDate
 import com.example.ui.components.FlightDealCard
@@ -180,7 +181,7 @@ fun CalendarPriceScreen(
                     ) {
                         Box(modifier = Modifier.weight(1f)) {
                             RouteAirportButton(
-                                label = "Origen",
+                                label = "Origen MX",
                                 code = state.originCode,
                                 city = AirportData.findByCode(state.originCode)?.city ?: state.originCode,
                                 accentColor = colors.neonCyan,
@@ -221,7 +222,7 @@ fun CalendarPriceScreen(
 
                         Box(modifier = Modifier.weight(1f)) {
                             RouteAirportButton(
-                                label = "Destino",
+                                label = "Destino MX",
                                 code = state.destinationCode,
                                 city = AirportData.findByCode(state.destinationCode)?.city ?: state.destinationCode,
                                 accentColor = colors.neonPink,
@@ -318,6 +319,14 @@ fun CalendarPriceScreen(
                         FilterChip(
                             selected = active,
                             onClick = { onAirlineFilterChange(if (active) null else airline) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(airline.brandColor)
+                                )
+                            },
                             label = { Text(airline.displayName) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = airline.brandColor.copy(alpha = if (colors.isDark) 0.24f else 0.14f),
@@ -392,6 +401,7 @@ fun CalendarPriceScreen(
                             state.roundTripStep == RoundTripStep.RETURN
                         FlightDealCard(
                             deal = deal,
+                            priceOptions = state.priceOptions,
                             isSelectedInPlan = isSelected,
                             selectButtonLabel = if (isSelected) {
                                 "Elegido"
@@ -409,7 +419,9 @@ fun CalendarPriceScreen(
                                     destinationCode = deal.destinationCode,
                                     liveBookingUrl = deal.liveBookingUrl
                                 )
-                                onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
+                                onRequestExternalRedirect(
+                                    BookingLinkHelper.createRedirectRequest(deal, url, priceOptions = state.priceOptions)
+                                )
                             },
                             onOpenPromoLocator = { onOpenPromoLocator(deal) }
                         )
@@ -424,7 +436,7 @@ fun CalendarPriceScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Toca cualquier fecha con precio en el calendario para ver horarios, escalas y elegir tu vuelo.",
+                            text = "Precios en el calendario mostrados en modo ${state.priceOptions.shortSummaryLabel}. Toca una fecha para ver horarios y elegir tu vuelo.",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.neonCyan,
                             modifier = Modifier.padding(12.dp)
@@ -457,6 +469,7 @@ fun CalendarPriceScreen(
                         state.roundTripStep == RoundTripStep.RETURN
                     FlightDealCard(
                         deal = deal,
+                        priceOptions = state.priceOptions,
                         isSelectedInPlan = isSelected,
                         selectButtonLabel = if (isSelected) {
                             "Elegido"
@@ -474,7 +487,9 @@ fun CalendarPriceScreen(
                                 destinationCode = deal.destinationCode,
                                 liveBookingUrl = deal.liveBookingUrl
                             )
-                            onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
+                            onRequestExternalRedirect(
+                                BookingLinkHelper.createRedirectRequest(deal, url, priceOptions = state.priceOptions)
+                            )
                         },
                         onOpenPromoLocator = { onOpenPromoLocator(deal) }
                     )
@@ -488,6 +503,7 @@ fun CalendarPriceScreen(
                     tripMode = state.tripMode,
                     outbound = state.selectedOutboundFlight,
                     returnFlight = state.selectedReturnFlight,
+                    priceOptions = state.priceOptions,
                     onOpenCalculator = onOpenCalculator,
                     onClearPlan = onClearPlan,
                     onPlanCopied = onShowMessage,
@@ -593,12 +609,19 @@ private fun MonthGridCard(
                     )
                 }
 
-                Text(
-                    text = state.displayedMonth.monthYearLabelEs,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colors.textPrimary,
-                    modifier = Modifier.testTag("calendar_month_title")
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = state.displayedMonth.monthYearLabelEs,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colors.textPrimary,
+                        modifier = Modifier.testTag("calendar_month_title")
+                    )
+                    Text(
+                        text = state.priceOptions.shortSummaryLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.neonCyan
+                    )
+                }
 
                 IconButton(
                     onClick = onNextMonth,
@@ -641,6 +664,7 @@ private fun MonthGridCard(
                         week.forEach { cell ->
                             CalendarDayCellBox(
                                 cell = cell,
+                                priceOptions = state.priceOptions,
                                 isOutboundSelected = cell.date == state.selectedOutboundDate,
                                 isReturnSelected = cell.date == state.selectedReturnDate,
                                 isInRange = state.selectedOutboundDate != null &&
@@ -648,7 +672,7 @@ private fun MonthGridCard(
                                     cell.date > state.selectedOutboundDate &&
                                     cell.date < state.selectedReturnDate,
                                 onClick = {
-                                    if (cell.isInCurrentMonth && cell.isInCatalogRange && cell.lowestBaseFareMxn != null) {
+                                    if (cell.isInCurrentMonth && cell.isInCatalogRange && cell.lowestEffectiveFareMxn != null) {
                                         onDayClicked(cell.date)
                                     }
                                 },
@@ -666,14 +690,15 @@ private fun MonthGridCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Airline.entries.forEach { airline ->
+                    items(Airline.entries, key = { it.iataCode }) { airline ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -689,6 +714,8 @@ private fun MonthGridCard(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.size(8.dp))
 
                 Surface(
                     color = if (state.liveRouteFaresCount > 0) colors.greenTint else colors.cyanTint,
@@ -719,8 +746,8 @@ private fun MonthGridCard(
                         Text(
                             text = when {
                                 liveSyncState.isSyncing -> "Consultando..."
-                                state.liveRouteFaresCount > 0 -> "${state.liveRouteFaresCount} fechas en vivo"
-                                else -> "Consultar en vivo"
+                                state.liveRouteFaresCount > 0 -> "${state.liveRouteFaresCount} en vivo"
+                                else -> "En vivo"
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = if (state.liveRouteFaresCount > 0) colors.neonGreen else colors.neonCyan,
@@ -736,6 +763,7 @@ private fun MonthGridCard(
 @Composable
 private fun CalendarDayCellBox(
     cell: CalendarDayCell,
+    priceOptions: PriceDisplayOptions,
     isOutboundSelected: Boolean,
     isReturnSelected: Boolean,
     isInRange: Boolean,
@@ -743,7 +771,8 @@ private fun CalendarDayCellBox(
     modifier: Modifier = Modifier
 ) {
     val colors = AppTheme.colors
-    val enabled = cell.isInCurrentMonth && cell.isInCatalogRange && cell.lowestBaseFareMxn != null
+    val shownFare = cell.lowestEffectiveFareMxn
+    val enabled = cell.isInCurrentMonth && cell.isInCatalogRange && shownFare != null
     val bgColor = when {
         !cell.isInCurrentMonth -> Color.Transparent
         isOutboundSelected -> colors.cyanTint
@@ -760,6 +789,9 @@ private fun CalendarDayCellBox(
         enabled -> colors.cardBorder
         else -> colors.disabledCellBorder
     }
+
+    val lowThreshold = if (priceOptions.includeTua) 1100 else 350
+    val midThreshold = if (priceOptions.includeTua) 1500 else 650
 
     Surface(
         color = bgColor,
@@ -790,16 +822,16 @@ private fun CalendarDayCellBox(
                     fontWeight = if (isOutboundSelected || isReturnSelected) FontWeight.Bold else FontWeight.Medium
                 )
 
-                if (cell.lowestBaseFareMxn != null) {
+                if (shownFare != null) {
                     val priceColor = when {
-                        cell.lowestBaseFareMxn <= 249 -> colors.neonGreen
-                        cell.lowestBaseFareMxn <= 499 -> colors.neonCyan
+                        shownFare <= lowThreshold -> colors.neonGreen
+                        shownFare <= midThreshold -> colors.neonCyan
                         else -> colors.textSecondary
                     }
                     Text(
-                        text = "$${cell.lowestBaseFareMxn}",
-                        fontSize = 9.sp,
-                        lineHeight = 10.sp,
+                        text = "$$shownFare",
+                        fontSize = 8.sp,
+                        lineHeight = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = priceColor,
                         maxLines = 1

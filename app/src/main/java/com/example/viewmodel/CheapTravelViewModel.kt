@@ -10,9 +10,12 @@ import com.example.data.FlightAlertRepository
 import com.example.data.FlightDealsRepository
 import com.example.data.LiveAirlineScraper
 import com.example.data.OriginPreferences
+import com.example.data.ScrapedPageResult
 import com.example.model.Airline
 import com.example.model.AirportData
 import com.example.model.FlightDeal
+import com.example.model.PriceDisplayOptions
+import com.example.model.PricingBaggageTier
 import com.example.model.TimePeriod
 import com.example.model.TravelDate
 import com.example.util.LocationDetector
@@ -48,11 +51,8 @@ enum class SortOrder(val label: String) {
 enum class DealQuickFilter(val label: String) {
     ALL("Todas"),
     LIVE_VERIFIED("En Vivo"),
-    BEACHES("Playas"),
-    DOMESTIC("Nacionales"),
-    INTERNATIONAL("Internacionales"),
-    VOLARIS_199("Solo Volaris"),
-    VIVA("Solo Viva Aerobus")
+    BEACHES("Playas MX"),
+    DIRECT("Directos")
 }
 
 enum class CalendarViewMode(val label: String) {
@@ -93,6 +93,7 @@ data class CalendarDayCell(
     val isInCurrentMonth: Boolean,
     val isInCatalogRange: Boolean,
     val lowestBaseFareMxn: Int?,
+    val lowestEffectiveFareMxn: Int? = lowestBaseFareMxn,
     val airlinesOperating: List<Airline>,
     val dealsCount: Int,
     val hasLiveFare: Boolean = false
@@ -102,8 +103,10 @@ data class DealsRadarUiState(
     val deals: List<FlightDeal> = emptyList(),
     val headToHeadRouteDateKeys: Set<String> = emptySet(),
     val quickFilter: DealQuickFilter = DealQuickFilter.ALL,
-    val maxBaseFareMxn: Float = 2000f,
-    val sortOrder: SortOrder = SortOrder.PRICE
+    val airlineFilter: Airline? = null,
+    val maxBaseFareMxn: Float = 3500f,
+    val sortOrder: SortOrder = SortOrder.PRICE,
+    val priceOptions: PriceDisplayOptions = PriceDisplayOptions()
 )
 
 data class SearchUiState(
@@ -112,7 +115,8 @@ data class SearchUiState(
     val maxTotalMxn: Float = 5500f,
     val directOnly: Boolean = false,
     val airlineFilter: Airline? = null,
-    val sortOrder: SortOrder = SortOrder.PRICE
+    val sortOrder: SortOrder = SortOrder.PRICE,
+    val priceOptions: PriceDisplayOptions = PriceDisplayOptions()
 )
 
 data class CalendarUiState(
@@ -136,7 +140,8 @@ data class CalendarUiState(
     val selectedOutboundFlight: FlightDeal? = null,
     val selectedReturnFlight: FlightDeal? = null,
     val availableRoutesDestinations: List<String> = emptyList(),
-    val liveRouteFaresCount: Int = 0
+    val liveRouteFaresCount: Int = 0,
+    val priceOptions: PriceDisplayOptions = PriceDisplayOptions()
 )
 
 class CheapTravelViewModel(application: Application) : AndroidViewModel(application) {
@@ -160,6 +165,14 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _isDarkMode = MutableStateFlow(originPreferences.isDarkModeEnabled())
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
+    private val _priceDisplayOptions = MutableStateFlow(
+        PriceDisplayOptions(
+            includeTua = originPreferences.isIncludeTua(),
+            baggageTier = originPreferences.getBaggageTier()
+        )
+    )
+    val priceDisplayOptions: StateFlow<PriceDisplayOptions> = _priceDisplayOptions.asStateFlow()
 
     private val _selectedOrigins = MutableStateFlow(originPreferences.getSelectedOrigins())
     val selectedOrigins: StateFlow<List<String>> = _selectedOrigins.asStateFlow()
@@ -187,15 +200,18 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
 
     // Tab 1: Deals Radar filters
     private val _dealQuickFilter = MutableStateFlow(DealQuickFilter.ALL)
-    private val _dealMaxBaseFare = MutableStateFlow(2000f)
+    private val _dealAirlineFilter = MutableStateFlow<Airline?>(null)
+    private val _dealMaxBaseFare = MutableStateFlow(3500f)
     private val _dealSortOrder = MutableStateFlow(SortOrder.PRICE)
 
     val dealsRadarState: StateFlow<DealsRadarUiState> = combine(
         _selectedOrigins,
         _selectedDestinations,
         _dealQuickFilter,
+        _dealAirlineFilter,
         _dealMaxBaseFare,
         _dealSortOrder,
+        _priceDisplayOptions,
         _catalogVersion
     ) { values ->
         @Suppress("UNCHECKED_CAST")
@@ -203,46 +219,48 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         @Suppress("UNCHECKED_CAST")
         val dests = values[1] as List<String>
         val quickFilter = values[2] as DealQuickFilter
-        val maxBase = values[3] as Float
-        val sortOrder = values[4] as SortOrder
+        val airlineFilter = values[3] as Airline?
+        val maxPrice = values[4] as Float
+        val sortOrder = values[5] as SortOrder
+        val priceOptions = values[6] as PriceDisplayOptions
 
         val raw = dealsRepository.getDealsForOriginsAndDestinations(origins, dests)
         val filtered = raw.filter { deal ->
-            val matchesMax = deal.baseFareMxn <= maxBase.toInt()
+            val effectivePrice = deal.effectivePriceMxn(priceOptions)
+            val matchesMax = effectivePrice <= maxPrice.toInt()
+            val matchesAirline = airlineFilter == null || deal.airline == airlineFilter
             val destAirport = AirportData.findByCode(deal.destinationCode)
             val matchesQuick = when (quickFilter) {
                 DealQuickFilter.ALL -> true
                 DealQuickFilter.LIVE_VERIFIED -> deal.isLiveVerified
                 DealQuickFilter.BEACHES -> destAirport?.isBeach == true
-                DealQuickFilter.DOMESTIC -> !deal.isInternational
-                DealQuickFilter.INTERNATIONAL -> deal.isInternational
-                DealQuickFilter.VOLARIS_199 -> deal.airline == Airline.VOLARIS
-                DealQuickFilter.VIVA -> deal.airline == Airline.VIVA_AEROBUS
+                DealQuickFilter.DIRECT -> deal.isNonStop
             }
-            matchesMax && matchesQuick
+            matchesMax && matchesAirline && matchesQuick
         }
         val sorted = when (sortOrder) {
             SortOrder.PRICE -> filtered.sortedWith(
                 compareByDescending<FlightDeal> { it.isLiveVerified }
-                    .thenBy { it.baseFareMxn }
-                    .thenBy { it.totalWithTuaMxn }
+                    .thenBy { it.effectivePriceMxn(priceOptions) }
                     .thenBy { it.departureDate }
             )
             SortOrder.DATE -> filtered.sortedWith(
                 compareBy<FlightDeal> { it.departureDate }
                     .thenByDescending { it.isLiveVerified }
-                    .thenBy { it.baseFareMxn }
+                    .thenBy { it.effectivePriceMxn(priceOptions) }
                     .thenBy { it.departureTime }
             )
         }
         DealsRadarUiState(
-            deals = sorted.take(140),
+            deals = sorted.take(150),
             headToHeadRouteDateKeys = computeHeadToHeadKeys(sorted),
             quickFilter = quickFilter,
-            maxBaseFareMxn = maxBase,
-            sortOrder = sortOrder
+            airlineFilter = airlineFilter,
+            maxBaseFareMxn = maxPrice,
+            sortOrder = sortOrder,
+            priceOptions = priceOptions
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DealsRadarUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DealsRadarUiState(priceOptions = _priceDisplayOptions.value))
 
     // Tab 2: Search filters
     private val _searchMaxTotal = MutableStateFlow(5500f)
@@ -257,6 +275,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         _searchDirectOnly,
         _searchAirline,
         _searchSortOrder,
+        _priceDisplayOptions,
         _catalogVersion
     ) { values ->
         @Suppress("UNCHECKED_CAST")
@@ -267,22 +286,23 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         val directOnly = values[3] as Boolean
         val airline = values[4] as Airline?
         val sortOrder = values[5] as SortOrder
+        val priceOptions = values[6] as PriceDisplayOptions
 
         val raw = dealsRepository.getDealsForOriginsAndDestinations(origins, dests)
         val filtered = raw.filter { deal ->
-            deal.totalWithTuaMxn <= maxTotal.toInt() &&
+            deal.effectivePriceMxn(priceOptions) <= maxTotal.toInt() &&
                 (!directOnly || deal.isNonStop) &&
                 (airline == null || deal.airline == airline)
         }
         val sorted = when (sortOrder) {
             SortOrder.PRICE -> filtered.sortedWith(
                 compareByDescending<FlightDeal> { it.isLiveVerified }
-                    .thenBy { it.totalWithTuaMxn }
+                    .thenBy { it.effectivePriceMxn(priceOptions) }
                     .thenBy { it.departureDate }
             )
             SortOrder.DATE -> filtered.sortedWith(
                 compareBy<FlightDeal> { it.departureDate }
-                    .thenBy { it.totalWithTuaMxn }
+                    .thenBy { it.effectivePriceMxn(priceOptions) }
                     .thenByDescending { it.isLiveVerified }
             )
         }
@@ -292,9 +312,10 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
             maxTotalMxn = maxTotal,
             directOnly = directOnly,
             airlineFilter = airline,
-            sortOrder = sortOrder
+            sortOrder = sortOrder,
+            priceOptions = priceOptions
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchUiState(priceOptions = _priceDisplayOptions.value))
 
     // Tab 3: Calendar & Trip Plan
     private val _calendarConfig = MutableStateFlow(
@@ -324,10 +345,15 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     val calendarState: StateFlow<CalendarUiState> = combine(
         _calendarConfig,
         _selectedOrigins,
+        _priceDisplayOptions,
         _catalogVersion
-    ) { cfg, _, _ ->
-        buildCalendarState(cfg)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), buildCalendarState(_calendarConfig.value))
+    ) { cfg, _, priceOptions, _ ->
+        buildCalendarState(cfg, priceOptions)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        buildCalendarState(_calendarConfig.value, _priceDisplayOptions.value)
+    )
 
     // Tab 4: Alerts (Room)
     val alerts: StateFlow<List<FlightAlert>> = alertRepository.allAlerts
@@ -354,12 +380,18 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         refreshLiveDeals(forceRefresh = false)
     }
 
+    private fun applyScrapedResults(results: List<ScrapedPageResult>): Int {
+        val fares = results.flatMap { it.fares }
+        val windows = results.flatMap { it.histogramWindows }
+        return dealsRepository.applyLiveFares(fares, windows)
+    }
+
     fun refreshLiveDeals(forceRefresh: Boolean = true) {
         viewModelScope.launch {
             _liveSyncState.update {
                 it.copy(
                     isSyncing = true,
-                    statusMessage = "Consultando precios reales en Volaris.com y VivaAerobus.com..."
+                    statusMessage = "Consultando tarifas y TUA en vivo en Volaris.com y VivaAerobus.com..."
                 )
             }
             try {
@@ -367,26 +399,26 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                 val selectedDests = _selectedDestinations.value.take(2)
                 val calCfg = _calendarConfig.value
 
-                val scrapedAll = coroutineScope {
-                    val globalJob = async { liveScraper.fetchGlobalPromos(forceRefresh) }
+                val scrapedResults = coroutineScope {
+                    val globalJob = async { liveScraper.fetchGlobalPromosResult(forceRefresh) }
                     val originJobs = origins.map { origin ->
-                        async { liveScraper.fetchOriginDeals(origin, forceRefresh) }
+                        async { liveScraper.fetchOriginDealsResult(origin, forceRefresh) }
                     }
                     val selectedRouteJobs = origins.take(2).flatMap { origin ->
                         selectedDests.filter { it != origin }.map { dest ->
-                            async { liveScraper.fetchRouteHistogram(origin, dest, forceRefresh) }
+                            async { liveScraper.fetchRouteHistogramResult(origin, dest, forceRefresh) }
                         }
                     }
                     val calOutJob = async {
-                        liveScraper.fetchRouteHistogram(calCfg.originCode, calCfg.destinationCode, forceRefresh)
+                        liveScraper.fetchRouteHistogramResult(calCfg.originCode, calCfg.destinationCode, forceRefresh)
                     }
                     val calRetJob = async {
-                        liveScraper.fetchRouteHistogram(calCfg.destinationCode, calCfg.originCode, forceRefresh)
+                        liveScraper.fetchRouteHistogramResult(calCfg.destinationCode, calCfg.originCode, forceRefresh)
                     }
-                    (listOf(globalJob, calOutJob, calRetJob) + originJobs + selectedRouteJobs).awaitAll().flatten()
+                    (listOf(globalJob, calOutJob, calRetJob) + originJobs + selectedRouteJobs).awaitAll()
                 }
 
-                val totalLive = dealsRepository.applyLiveFares(scrapedAll)
+                val totalLive = applyScrapedResults(scrapedResults)
                 _catalogVersion.update { it + 1 }
 
                 val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
@@ -394,7 +426,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                     LiveSyncState(
                         isSyncing = false,
                         liveFareCount = totalLive,
-                        statusMessage = "En vivo: $totalLive tarifas reales de Volaris.com y VivaAerobus.com",
+                        statusMessage = "En vivo: $totalLive tarifas MX reales (Volaris.com y VivaAerobus.com)",
                         lastUpdatedTimeLabel = timeLabel
                     )
                 } else {
@@ -425,19 +457,19 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                 )
             }
             try {
-                val fares = coroutineScope {
-                    val outJob = async { liveScraper.fetchRouteHistogram(originCode, destCode, false) }
-                    val retJob = async { liveScraper.fetchRouteHistogram(destCode, originCode, false) }
-                    (outJob.await() + retJob.await())
+                val results = coroutineScope {
+                    val outJob = async { liveScraper.fetchRouteHistogramResult(originCode, destCode, false) }
+                    val retJob = async { liveScraper.fetchRouteHistogramResult(destCode, originCode, false) }
+                    listOf(outJob.await(), retJob.await())
                 }
-                val totalLive = dealsRepository.applyLiveFares(fares)
+                val totalLive = applyScrapedResults(results)
                 _catalogVersion.update { it + 1 }
                 val timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
                 _liveSyncState.value = LiveSyncState(
                     isSyncing = false,
                     liveFareCount = totalLive,
                     statusMessage = if (totalLive > 0) {
-                        "En vivo: $totalLive tarifas reales (Volaris.com y VivaAerobus.com)"
+                        "En vivo: $totalLive tarifas MX reales (Volaris.com y VivaAerobus.com)"
                     } else {
                         "Modo referencial offline"
                     },
@@ -469,7 +501,10 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         return map.filterValues { it.size >= 2 }.keys
     }
 
-    private fun buildCalendarState(cfg: CalendarConfig): CalendarUiState {
+    private fun buildCalendarState(
+        cfg: CalendarConfig,
+        priceOptions: PriceDisplayOptions
+    ): CalendarUiState {
         val displayedMonth = today.firstOfMonth().plusMonths(cfg.monthOffset)
         val isSelectingReturn = cfg.tripMode == TripMode.ROUND_TRIP && cfg.roundTripStep == RoundTripStep.RETURN
 
@@ -490,9 +525,8 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
             today
         }
 
-        // Build 7-column Monday-first month grid (42 cells = 6 weeks or 35 cells = 5 weeks)
         val firstOfMonth = displayedMonth.firstOfMonth()
-        val leadingEmptyDays = firstOfMonth.dayOfWeekMondayFirst - 1 // 0..6
+        val leadingEmptyDays = firstOfMonth.dayOfWeekMondayFirst - 1
         val daysInMonth = displayedMonth.daysInMonth()
         val totalSlots = if (leadingEmptyDays + daysInMonth <= 35) 35 else 42
         val gridStartDate = firstOfMonth.plusDays(-leadingEmptyDays)
@@ -503,12 +537,14 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
             val inRange = cellDate >= minAllowedDate && cellDate <= maxCatalogDate
             val dayDeals = if (inRange) dealsByDate[cellDate].orEmpty() else emptyList()
             val lowestBase = dayDeals.minOfOrNull { it.baseFareMxn }
+            val lowestEffective = dayDeals.minOfOrNull { it.effectivePriceMxn(priceOptions) }
             val airlines = dayDeals.map { it.airline }.distinct()
             CalendarDayCell(
                 date = cellDate,
                 isInCurrentMonth = inMonth,
                 isInCatalogRange = inRange,
                 lowestBaseFareMxn = lowestBase,
+                lowestEffectiveFareMxn = lowestEffective,
                 airlinesOperating = airlines,
                 dealsCount = dayDeals.size,
                 hasLiveFare = dayDeals.any { it.isLiveVerified }
@@ -517,13 +553,13 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
 
         val activeSelectedDate = if (isSelectingReturn) cfg.selectedReturnDate else cfg.selectedOutboundDate
         val activeDayFlights = if (activeSelectedDate != null) {
-            sortCalendarFlights(dealsByDate[activeSelectedDate].orEmpty(), cfg.sortOption)
+            sortCalendarFlights(dealsByDate[activeSelectedDate].orEmpty(), cfg.sortOption, priceOptions)
         } else {
             emptyList()
         }
 
         val chronologicalPool = filteredRouteDeals.filter { it.departureDate >= minAllowedDate }
-        val sortedListFlights = sortCalendarFlights(chronologicalPool, cfg.sortOption).take(120)
+        val sortedListFlights = sortCalendarFlights(chronologicalPool, cfg.sortOption, priceOptions).take(120)
 
         val minMonthKey = today.firstOfMonth().yearMonthKey
         val maxMonthKey = maxCatalogDate.firstOfMonth().yearMonthKey
@@ -550,35 +586,50 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
             selectedOutboundFlight = cfg.selectedOutboundFlight,
             selectedReturnFlight = cfg.selectedReturnFlight,
             availableRoutesDestinations = dealsRepository.getReachableDestinations(cfg.originCode),
-            liveRouteFaresCount = liveRouteCount
+            liveRouteFaresCount = liveRouteCount,
+            priceOptions = priceOptions
         )
     }
 
     private fun sortCalendarFlights(
         deals: List<FlightDeal>,
-        option: CalendarSortOption
+        option: CalendarSortOption,
+        priceOptions: PriceDisplayOptions
     ): List<FlightDeal> {
         return when (option) {
             CalendarSortOption.CHEAPEST -> deals.sortedWith(
-                compareBy<FlightDeal> { it.baseFareMxn }
+                compareBy<FlightDeal> { it.effectivePriceMxn(priceOptions) }
                     .thenByDescending { it.isLiveVerified }
-                    .thenBy { it.totalWithTuaMxn }
                     .thenBy { it.departureDate }
             )
             CalendarSortOption.SOONEST -> deals.sortedWith(
                 compareBy<FlightDeal> { it.departureDate }
                     .thenBy { it.departureTime }
-                    .thenBy { it.baseFareMxn }
+                    .thenBy { it.effectivePriceMxn(priceOptions) }
             )
             CalendarSortOption.RECOMMENDED -> deals.sortedWith(
                 compareBy<FlightDeal> { deal ->
                     val daysOut = TravelDate.daysBetween(today, deal.departureDate).coerceAtLeast(0)
                     val layoverPenalty = if (deal.isNonStop) 0 else 180
-                    deal.baseFareMxn + (daysOut * 14) + layoverPenalty
+                    deal.effectivePriceMxn(priceOptions) + (daysOut * 14) + layoverPenalty
                 }.thenByDescending { it.isLiveVerified }
-                    .thenBy { it.totalWithTuaMxn }
             )
         }
+    }
+
+    // Global Pricing Filter Actions
+    fun setIncludeTua(include: Boolean) {
+        _priceDisplayOptions.update { it.copy(includeTua = include) }
+        originPreferences.saveIncludeTua(include)
+    }
+
+    fun toggleIncludeTua() {
+        setIncludeTua(!_priceDisplayOptions.value.includeTua)
+    }
+
+    fun setBaggageTier(tier: PricingBaggageTier) {
+        _priceDisplayOptions.update { it.copy(baggageTier = tier) }
+        originPreferences.saveBaggageTier(tier)
     }
 
     // Navigation & Modals
@@ -633,6 +684,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     // Multi-Airport Origin & Destination Actions
     fun toggleOriginSelection(code: String) {
         val upper = code.uppercase()
+        if (!AirportData.isDomesticMexicanAirport(upper)) return
         val current = _selectedOrigins.value.toMutableList()
         val added = if (upper in current) {
             current.remove(upper)
@@ -648,9 +700,9 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         }
         if (added) {
             viewModelScope.launch {
-                val fares = liveScraper.fetchOriginDeals(upper, forceRefresh = false)
-                if (fares.isNotEmpty()) {
-                    dealsRepository.applyLiveFares(fares)
+                val pageResult = liveScraper.fetchOriginDealsResult(upper, forceRefresh = false)
+                if (pageResult.fares.isNotEmpty() || pageResult.histogramWindows.isNotEmpty()) {
+                    dealsRepository.applyLiveFares(pageResult.fares, pageResult.histogramWindows)
                     _catalogVersion.update { it + 1 }
                 }
             }
@@ -674,6 +726,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
 
     fun toggleDestinationSelection(code: String) {
         val upper = code.uppercase()
+        if (!AirportData.isDomesticMexicanAirport(upper)) return
         val current = _selectedDestinations.value.toMutableList()
         val added = if (upper in current) {
             current.remove(upper)
@@ -687,13 +740,13 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         if (added) {
             val origins = _selectedOrigins.value.ifEmpty { listOf("MEX", "NLU") }.take(2)
             viewModelScope.launch {
-                val fares = coroutineScope {
+                val results = coroutineScope {
                     origins.filter { it != upper }.map { o ->
-                        async { liveScraper.fetchRouteHistogram(o, upper, forceRefresh = false) }
-                    }.awaitAll().flatten()
+                        async { liveScraper.fetchRouteHistogramResult(o, upper, forceRefresh = false) }
+                    }.awaitAll()
                 }
-                if (fares.isNotEmpty()) {
-                    dealsRepository.applyLiveFares(fares)
+                if (results.any { it.fares.isNotEmpty() || it.histogramWindows.isNotEmpty() }) {
+                    applyScrapedResults(results)
                     _catalogVersion.update { it + 1 }
                 }
             }
@@ -756,6 +809,10 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     // Tab 1 Actions
     fun setDealQuickFilter(filter: DealQuickFilter) {
         _dealQuickFilter.value = filter
+    }
+
+    fun setDealAirlineFilter(airline: Airline?) {
+        _dealAirlineFilter.value = airline
     }
 
     fun setDealMaxBaseFare(value: Float) {
@@ -871,6 +928,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun onCalendarDateClicked(date: TravelDate) {
+        val priceOptions = _priceDisplayOptions.value
         _calendarConfig.update { cfg ->
             val filteredForStep = { o: String, d: String ->
                 dealsRepository.getDealsForRoute(o, d).filter { deal ->
@@ -882,7 +940,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
             }
 
             if (cfg.tripMode == TripMode.ONE_WAY) {
-                val sorted = sortCalendarFlights(filteredForStep(cfg.originCode, cfg.destinationCode), cfg.sortOption)
+                val sorted = sortCalendarFlights(filteredForStep(cfg.originCode, cfg.destinationCode), cfg.sortOption, priceOptions)
                 cfg.copy(
                     selectedOutboundDate = date,
                     selectedOutboundFlight = sorted.firstOrNull()
@@ -891,7 +949,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                 if (cfg.roundTripStep == RoundTripStep.OUTBOUND ||
                     (cfg.selectedOutboundDate != null && date < cfg.selectedOutboundDate)
                 ) {
-                    val sortedOut = sortCalendarFlights(filteredForStep(cfg.originCode, cfg.destinationCode), cfg.sortOption)
+                    val sortedOut = sortCalendarFlights(filteredForStep(cfg.originCode, cfg.destinationCode), cfg.sortOption, priceOptions)
                     val keepReturn = cfg.selectedReturnDate != null && cfg.selectedReturnDate >= date
                     cfg.copy(
                         selectedOutboundDate = date,
@@ -901,7 +959,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                         roundTripStep = RoundTripStep.RETURN
                     )
                 } else {
-                    val sortedRet = sortCalendarFlights(filteredForStep(cfg.destinationCode, cfg.originCode), cfg.sortOption)
+                    val sortedRet = sortCalendarFlights(filteredForStep(cfg.destinationCode, cfg.originCode), cfg.sortOption, priceOptions)
                     cfg.copy(
                         selectedReturnDate = date,
                         selectedReturnFlight = sortedRet.firstOrNull()
@@ -959,7 +1017,7 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
                     isActive = true
                 )
             )
-            _snackbarMessage.value = "Alerta guardada para ${originCode.uppercase()} -> ${destinationCode ?: "Cualquier destino"}"
+            _snackbarMessage.value = "Alerta guardada para ${originCode.uppercase()} -> ${destinationCode ?: "Cualquier destino MX"}"
         }
     }
 
@@ -1011,27 +1069,30 @@ class CheapTravelViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         val best = allMatches.first()
-        val summary = "${allMatches.size} vuelos encontrados. Mejor oferta: ${best.airline.displayName} ${best.flightNumber} ${best.originCode}-${best.destinationCode} desde $${best.baseFareMxn} MXN (+ $${best.originTuaMxn} TUA)."
+        val opts = _priceDisplayOptions.value
+        val displayPrice = best.effectivePriceMxn(opts)
+        val summary = "${allMatches.size} vuelos encontrados. Mejor oferta: ${best.airline.displayName} ${best.flightNumber} ${best.originCode}-${best.destinationCode} desde $$displayPrice MXN (${opts.shortSummaryLabel})."
         _lastScanSummary.value = summary
 
         NotificationHelper.sendDealNotification(
             context = context,
-            title = "Oferta detectada: ${best.originCode} a ${best.destinationCode} desde $${best.baseFareMxn} MXN",
-            message = "${best.airline.displayName} (${best.flightNumber}) el ${best.departureDate.shortLabelEs} · Total con TUA $${best.totalWithTuaMxn} MXN",
+            title = "Oferta detectada: ${best.originCode} a ${best.destinationCode} desde $$displayPrice MXN",
+            message = "${best.airline.displayName} (${best.flightNumber}) el ${best.departureDate.shortLabelEs} · ${opts.shortSummaryLabel}",
             notificationId = 2001
         )
     }
 
     fun sendTestPushNotification(context: Context): Boolean {
+        val opts = _priceDisplayOptions.value
         val samplePool = dealsRadarState.value.deals.ifEmpty { dealsRepository.catalog }
-        val best = samplePool.minByOrNull { it.baseFareMxn }
+        val best = samplePool.minByOrNull { it.effectivePriceMxn(opts) }
         val title = if (best != null) {
-            "Alerta Cheap Travel: ${best.originCode} - ${best.destinationCode} $${best.baseFareMxn} MXN"
+            "Alerta Cheap Travel: ${best.originCode} - ${best.destinationCode} $${best.effectivePriceMxn(opts)} MXN"
         } else {
-            "Alerta Cheap Travel: Vuelos desde $199 MXN"
+            "Alerta Cheap Travel: Vuelos nacionales MX"
         }
         val body = if (best != null) {
-            "${best.airline.displayName} ${best.flightNumber} el ${best.departureDate.shortLabelEs}. TUA $${best.originTuaMxn} MXN."
+            "${best.airline.displayName} ${best.flightNumber} el ${best.departureDate.shortLabelEs}. ${best.fareBreakdownSummary(opts)}."
         } else {
             "Notificación de prueba de alta prioridad activa."
         }

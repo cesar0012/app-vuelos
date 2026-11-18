@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
@@ -37,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -93,13 +96,13 @@ fun SearchScreen(
                     ) {
                         Icon(Icons.Default.Tune, contentDescription = null, tint = colors.neonCyan, modifier = Modifier.size(18.dp))
                         Text(
-                            text = "Buscador Flexible Multi-Ruta",
+                            text = "Buscador Nacional Flexible",
                             style = MaterialTheme.typography.titleMedium,
                             color = colors.textPrimary
                         )
                     }
                     Text(
-                        text = "Filtra combinaciones por presupuesto total con TUA incluido usando los chips superiores.",
+                        text = "Filtra rutas nacionales en México aplicando el modo superior (${state.priceOptions.shortSummaryLabel}).",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary
                     )
@@ -112,7 +115,7 @@ fun SearchScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Presupuesto máx. (Base + TUA)",
+                            text = "Presupuesto máx. (${state.priceOptions.shortSummaryLabel})",
                             style = MaterialTheme.typography.labelLarge,
                             color = colors.textPrimary
                         )
@@ -164,7 +167,7 @@ fun SearchScreen(
                             FilterChip(
                                 selected = selected,
                                 onClick = { onAirlineFilterChange(null) },
-                                label = { Text("Todas") },
+                                label = { Text("Todas (7)") },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = colors.cyanTint,
                                     selectedLabelColor = colors.neonCyan,
@@ -180,6 +183,14 @@ fun SearchScreen(
                                 selected = selected,
                                 onClick = {
                                     onAirlineFilterChange(if (selected) null else airline)
+                                },
+                                leadingIcon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(airline.brandColor)
+                                    )
                                 },
                                 label = { Text(airline.displayName) },
                                 colors = FilterChipDefaults.filterChipColors(
@@ -226,7 +237,7 @@ fun SearchScreen(
 
         item(key = "results_count") {
             Text(
-                text = "${state.results.size} resultados encontrados",
+                text = "${state.results.size} vuelos nacionales encontrados",
                 style = MaterialTheme.typography.labelLarge,
                 color = colors.neonCyan
             )
@@ -235,7 +246,7 @@ fun SearchScreen(
         if (state.results.isEmpty()) {
             item(key = "empty_search") {
                 EmptyDealsBox(
-                    message = "No encontramos vuelos por debajo de $${state.maxTotalMxn.roundToInt()} MXN con TUA. Amplía el presupuesto o desactiva filtros."
+                    message = "No encontramos vuelos por debajo de $${state.maxTotalMxn.roundToInt()} MXN (${state.priceOptions.shortSummaryLabel}). Amplía el presupuesto o cambia filtros."
                 )
             }
         } else if (state.sortOrder == SortOrder.DATE) {
@@ -250,6 +261,7 @@ fun SearchScreen(
                     val compKey = "${deal.originCode}-${deal.destinationCode}-${deal.departureDate.isoString}"
                     FlightDealCard(
                         deal = deal,
+                        priceOptions = state.priceOptions,
                         isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                         onOpenCalculator = { onOpenCalculator(deal) },
                         onVerifyGoogleFlights = {
@@ -259,7 +271,9 @@ fun SearchScreen(
                                 destinationCode = deal.destinationCode,
                                 liveBookingUrl = deal.liveBookingUrl
                             )
-                            onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
+                            onRequestExternalRedirect(
+                                BookingLinkHelper.createRedirectRequest(deal, url, priceOptions = state.priceOptions)
+                            )
                         },
                         onOpenPromoLocator = { onOpenPromoLocator(deal) }
                     )
@@ -270,6 +284,7 @@ fun SearchScreen(
                 val compKey = "${deal.originCode}-${deal.destinationCode}-${deal.departureDate.isoString}"
                 FlightDealCard(
                     deal = deal,
+                    priceOptions = state.priceOptions,
                     isHeadToHeadCompetition = compKey in state.headToHeadRouteDateKeys,
                     onOpenCalculator = { onOpenCalculator(deal) },
                     onVerifyGoogleFlights = {
@@ -279,7 +294,9 @@ fun SearchScreen(
                             destinationCode = deal.destinationCode,
                             liveBookingUrl = deal.liveBookingUrl
                         )
-                        onRequestExternalRedirect(BookingLinkHelper.createRedirectRequest(deal, url))
+                        onRequestExternalRedirect(
+                            BookingLinkHelper.createRedirectRequest(deal, url, priceOptions = state.priceOptions)
+                        )
                     },
                     onOpenPromoLocator = { onOpenPromoLocator(deal) }
                 )
