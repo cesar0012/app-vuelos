@@ -174,10 +174,10 @@ fun TripPlanSummaryCard(
             // Price summary
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     val bagPart = if (bagTotal > 0) " + Equip. $$bagTotal" else ""
                     val tuaPart = if (priceOptions.includeTua) " + TUA $$tuaTotal" else " (Sin TUA)"
                     Text(

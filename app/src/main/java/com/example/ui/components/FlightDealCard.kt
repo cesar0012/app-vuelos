@@ -184,11 +184,11 @@ fun FlightDealCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Route + Times + Transparent Price Breakdown
+            // Route + Times + Price (protected against vertical wrapping)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
@@ -198,7 +198,9 @@ fun FlightDealCard(
                         Text(
                             text = deal.originCode,
                             style = MaterialTheme.typography.headlineSmall,
-                            color = colors.textPrimary
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -209,7 +211,9 @@ fun FlightDealCard(
                         Text(
                             text = deal.destinationCode,
                             style = MaterialTheme.typography.headlineSmall,
-                            color = colors.textPrimary
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                     Text(
@@ -223,7 +227,9 @@ fun FlightDealCard(
                     Text(
                         text = "${deal.departureTime} - ${deal.arrivalTime} · ${deal.formattedDuration}",
                         style = MaterialTheme.typography.titleSmall,
-                        color = colors.neonCyan
+                        color = colors.neonCyan,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -232,30 +238,44 @@ fun FlightDealCard(
                         text = "$$effectivePrice MXN",
                         style = MaterialTheme.typography.headlineSmall,
                         color = if (effectivePrice <= cheapThreshold) colors.neonGreen else colors.neonCyan,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
                     )
                     Surface(
                         color = colors.cardHighest,
                         shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 3.dp)
                     ) {
                         Text(
                             text = priceOptions.shortSummaryLabel,
                             style = MaterialTheme.typography.labelSmall,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
-                    Text(
-                        text = formulaSummary,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Full-width transparent fare breakdown so it never crowds the route codes
+            Surface(
+                color = colors.cardHighest.copy(alpha = 0.65f),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = formulaSummary,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
